@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.18';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.19';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -172,8 +172,10 @@
           if (ol.length > 1) { sy.appendChild(h('div', { class: 'etiket' }, 'Sık kullanılan etiketler')); ol.forEach(function (o) { sy.appendChild(h('span', { class: 'chip', onclick: function () { inp.forEach(function (x, i) { x.value = o[i] || ''; }); } }, o.filter(String).join(' / ') || '(boş)')); }); }
           sy.appendChild(h('div', { class: 'etiket', style: { margin: '8px 0 2px' } }, 'Etiket 1–5 (isteğe bağlı)'));
           for (var i = 0; i < 5; i++) { var x = h('input', { class: 'alan', type: 'text', placeholder: 'Etiket-' + (i + 1), value: et[i] || '', style: { minHeight: '44px', margin: '2px 0 6px' } }); inp.push(x); sy.appendChild(x); }
+          var acikGiris = null;
+          if (baslangic && baslangic.aciklama != null) { sy.appendChild(h('div', { class: 'etiket', style: { margin: '8px 0 2px' } }, 'Açıklama (isteğe bağlı değiştir)')); acikGiris = h('input', { class: 'alan', type: 'text', maxlength: '120', value: baslangic.aciklama, style: { minHeight: '44px', margin: '2px 0 6px' } }); sy.appendChild(acikGiris); }
           sy.appendChild(h('label', { class: 'muted sm', style: { display: 'flex', gap: '10px', alignItems: 'center', margin: '4px 0 12px', minHeight: '44px' } }, kural, 'Bu mağaza/satıcı hep böyle (kural)'));
-          sy.appendChild(h('button', { class: 'btn blok', onclick: function () { bitir({ cari: cari, etiket: inp.map(function (x) { return x.value; }), kural: kural.checked }); } }, cari + ' olarak seç'));
+          sy.appendChild(h('button', { class: 'btn blok', onclick: function () { bitir({ cari: cari, etiket: inp.map(function (x) { return x.value; }), kural: kural.checked, aciklama: acikGiris ? acikGiris.value : undefined }); } }, cari + ' olarak seç'));
         }
         ara.oninput = ciz; sy.append(h('div', { style: { fontWeight: '700', fontSize: '18px', marginBottom: '6px' } }, 'Cari seç'), ara, liste); ciz();
       });
@@ -242,11 +244,15 @@
               parcalar.push(h('span', { class: 'chip' + (sec && sec.i === i ? ' s' : ''), onclick: function () { it.sec = sec = { cari: o.cari, etiket: o.etiket.slice(), kural: kural.checked, i: i }; chipCiz(); } }, o.metin));
             });
           });
-          parcalar.push(h('span', { class: 'chip' + (sec && sec.i === 'x' ? ' s' : ''), onclick: async function () { var r = await cariSec(sec); if (r) { it.sec = sec = { cari: r.cari, etiket: r.etiket, kural: r.kural, i: 'x' }; kural.checked = r.kural; chipCiz(); } } }, sec && sec.i === 'x' ? sec.cari : 'Başka cari…'));
+          parcalar.push(h('span', { class: 'chip' + (sec && sec.i === 'x' ? ' s' : ''), onclick: async function () { var r = await cariSec(sec ? Object.assign({}, sec, it.acik ? { aciklama: it.acik.value } : {}) : (it.acik ? { aciklama: it.acik.value } : null)); if (r) { it.sec = sec = { cari: r.cari, etiket: r.etiket, kural: r.kural, i: 'x' }; kural.checked = r.kural; if (it.acik && r.aciklama != null) it.acik.value = r.aciklama; chipCiz(); } } }, sec && sec.i === 'x' ? sec.cari : 'Başka cari…'));
           chipler.replaceChildren.apply(chipler, parcalar);
         }
         chipCiz();
-        kt.append(chipler,
+        var acikOk = k.kaynak === 'hesap' && k.adet === 1, acik = acikOk ? h('input', { class: 'alan', type: 'text', maxlength: '120', value: k.aciklama, style: { minHeight: '44px', margin: '2px 0 6px' } }) : null;
+        if (acik) it.acik = acik;
+        kt.append(chipler);
+        if (acik) kt.append(h('div', { class: 'etiket', style: { margin: '10px 0 2px' } }, 'Açıklama (isteğe bağlı değiştir)'), acik);
+        kt.append(
           h('label', { class: 'muted sm', style: { display: 'flex', gap: '10px', alignItems: 'center', minHeight: '44px' } }, kural, 'Bu mağaza hep böyle (kural)'),
           h('div', { class: 'satir-btn' }, h('button', { class: 'btn', onclick: function () { if (!sec) return toast('Önce bir cari seç'); sec.kural = kural.checked; cevapla(it); } }, ic('ok', 20), 'Onayla'), h('button', { class: 'btn o', onclick: function () { if (tk) tk.git(tk.indeks() + 1); } }, 'Atla')));
       }
@@ -255,7 +261,7 @@
   }
   async function cevapla(it) {
     var k = it.k;
-    try { await api('cevapla', { anahtar: k.anahtar, cari: it.sec.cari, etiket: it.sec.etiket, kural: !!it.sec.kural, mod: S.mod }); } catch (e) { return toast(hataMetni(e)); }
+    try { var ac = it.acik ? it.acik.value.trim() : ''; await api('cevapla', { anahtar: k.anahtar, cari: it.sec.cari, etiket: it.sec.etiket, kural: !!it.sec.kural, mod: S.mod, aciklama: ac && ac !== k.aciklama ? ac : undefined }); } catch (e) { return toast(hataMetni(e)); }
     it.done = true; it.el.classList.add('bitti'); it.el.querySelector('.sat .ic').replaceChildren(ic('ok', 18).firstChild);
     toast(k.aciklama.slice(0, 28) + ' → ' + it.sec.cari, 'Geri al', async function () { try { await api('geriAl'); sorularEkrani(S.sekme); } catch (e) { toast(hataMetni(e)); } });
     setTimeout(function () { if (tk) tk.git(tk.indeks() + 1); }, 220);
