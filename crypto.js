@@ -16,13 +16,16 @@
     return hex(await subtle.sign('HMAC', k, enc.encode(mesaj)));
   }
 
-  /** İmzalı istek gövdesi (düz metin JSON). g: gizli izin {e,s} (isteğe bağlı). */
+  /** JSON metnindeki ASCII dışı her karakter \uXXXX olur: imza ve gövde yalnız ASCII'dir, sunucuda karakter kodlaması (UTF-8/Latin-1) farkı imzayı bozamaz (1 Kasım: "Eşya" cevabı 'İmza geçersiz' verdi). */
+  function asciiJson(js) { return js.replace(/[\u007f-\uffff]/g, function (c) { return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4); }); }
+
+  /** İmzalı istek gövdesi (düz metin, ASCII JSON). g: gizli izin {e,s} (isteğe bağlı). */
   async function imzala(token, eylem, d, g, simdi) {
     d = d || {};
-    var t = simdi || Date.now(), n = nonce(), s = await hmacHex([eylem, t, n, JSON.stringify(d)].join('|'), token);
+    var t = simdi || Date.now(), n = nonce(), s = await hmacHex([eylem, t, n, asciiJson(JSON.stringify(d))].join('|'), token);
     var o = { a: eylem, t: t, n: n, s: s, d: d };
     if (g) o.g = g;
-    return JSON.stringify(o);
+    return asciiJson(JSON.stringify(o));
   }
 
   async function anahtarTuret(pin, tuz, tekrar) {
@@ -41,6 +44,6 @@
     return JSON.parse(dec.decode(d));
   }
 
-  var api = { imzala: imzala, hmacHex: hmacHex, sifrele: sifrele, coz: coz, nonce: nonce };
+  var api = { asciiJson: asciiJson, imzala: imzala, hmacHex: hmacHex, sifrele: sifrele, coz: coz, nonce: nonce };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else kok.MizanCrypto = api;
 })(typeof self !== 'undefined' ? self : globalThis);
