@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.20';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.21';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -214,6 +214,7 @@
     (k.gecmis || []).forEach(function (g) { out.push({ grup: 'Geçmişten (aynı tutar, ayın aynı günleri)', cari: g.cari, etiket: g.etiket.slice(), metin: g.cari + ' · ' + g.ay + '/' + g.pencere + ' ay' + (et(g.etiket) ? ' · ' + et(g.etiket) : '') }); });
     (k.oneriler || []).slice(0, 3).forEach(function (o) { out.push({ grup: S.mod === 'kontrol' ? 'Mevcut atama / öneri' : 'Öneri', cari: o.cari, etiket: o.etiket.slice(), metin: o.cari + (et(o.etiket) ? ' · ' + et(o.etiket) : '') + (o.yuzde ? ' · %' + o.yuzde : '') }); });
     if (k.kaynak === 'hesap' && S.mod !== 'kontrol') S.kisayollar.forEach(function (c) { out.push({ grup: 'Hızlı', cari: c.cari, etiket: c.etiket.slice(), metin: c.ad }); });
+    if (k.kendine) out = out.filter(function (x) { return x.grup === 'Hızlı'; }).concat(out.filter(function (x) { return x.grup !== 'Hızlı'; }));   // kendine FAST/iç transfer: 'Kendi hesabım' varsayılan
     if (S.mod === 'kontrol') { var ilkOneri = out.filter(function (x) { return x.grup.indexOf('Mevcut') === 0; }); out = ilkOneri.concat(out.filter(function (x) { return ilkOneri.indexOf(x) < 0; })); }   // Kontrol: mevcut atama varsayılan
     return out;
   }
