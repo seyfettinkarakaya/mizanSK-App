@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.22';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.23';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -259,12 +259,26 @@
     }
     el.append(sat, kt); it.el = el; return el;
   }
+  // İYİMSER KAYIT: Onayla'ya basınca kart HEMEN biter ve sıradakine geçilir; sunucu kaydı arka planda sırayla yapılır (sunucu 3-4 sn sürebiliyor, ekranı bekletmez).
+  // Hata olursa kart geri açılır ve toast gösterilir. Liste/ekran değişimi bekleyen kayıtları bekler.
+  S.kuyruk = []; S.kuyrukIs = null;
+  function kuyrukEkle(is) { S.kuyruk.push(is); if (!S.kuyrukIs) S.kuyrukIs = (async function () { while (S.kuyruk.length) { var j = S.kuyruk.shift(); try { await j(); } catch (e) { /* iş kendi hatasını yönetir */ } } S.kuyrukIs = null; })(); }
+  function kuyrukBekle() { return S.kuyrukIs || Promise.resolve(); }
   async function cevapla(it) {
-    var k = it.k;
-    try { var ac = it.acik ? it.acik.value.trim() : ''; await api('cevapla', { anahtar: k.anahtar, cari: it.sec.cari, etiket: it.sec.etiket, kural: !!it.sec.kural, mod: S.mod, aciklama: ac && ac !== k.aciklama ? ac : undefined }); } catch (e) { if (/Soru bulunamad/.test(e.message)) { toast('Bu soru zaten cevaplanmış: liste yenileniyor'); setTimeout(function () { sorularEkrani(S.sekme); }, 700); return; } return toast(hataMetni(e)); }
+    var k = it.k, sec = it.sec, ac = it.acik ? it.acik.value.trim() : '', mod = S.mod, idx = it.idx;
+    if (it.done) return;
     it.done = true; it.el.classList.add('bitti'); it.el.querySelector('.sat .ic').replaceChildren(ic('ok', 18).firstChild);
-    toast(k.aciklama.slice(0, 28) + ' → ' + it.sec.cari, 'Geri al', async function () { try { await api('geriAl'); sorularEkrani(S.sekme); } catch (e) { toast(hataMetni(e)); } });
-    setTimeout(function () { if (tk) tk.git(tk.indeks() + 1); }, 220);
+    toast('Kaydediliyor: ' + k.aciklama.slice(0, 24) + ' → ' + sec.cari);
+    setTimeout(function () { if (tk) tk.git(tk.indeks() + 1); }, 150);
+    kuyrukEkle(async function () {
+      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!sec.kural, mod: mod, aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip }); }
+      catch (e) {
+        if (/Soru bulunamad/.test(e.message)) { toast('Bu soru zaten cevaplanmış (liste yenilenince kaybolur)'); return; }
+        it.done = false; it.el.classList.remove('bitti'); it.el.querySelector('.sat .ic').replaceChildren(ic('nokta', 18).firstChild);
+        toast('Kaydedilemedi: ' + hataMetni(e)); if (tk && idx != null) tk.git(idx); return;
+      }
+      toast(k.aciklama.slice(0, 28) + ' → ' + sec.cari, 'Geri al', async function () { try { await kuyrukBekle(); await api('geriAl'); sorularEkrani(S.sekme); } catch (e) { toast(hataMetni(e)); } });
+    });
   }
   async function maasCevap(it, mod) {
     try { await api('maasCevap', { anahtar: it.k.anahtar, mod: mod }); } catch (e) { return toast(hataMetni(e)); }
@@ -274,8 +288,8 @@
   /** sekme: 'kart' | 'hesap' | 'kontrol'. Boşsa son sekme; ilk açılışta kart, kartta soru yoksa hesap. */
   async function sorularEkrani(sekme) {
     var ilk = !sekme && !S.sekme; S.sekme = sekme || S.sekme || 'kart'; S.mod = S.sekme === 'kontrol' ? 'kontrol' : 'soru';
-    var kap = ekranHazir(true); kap.replaceChildren(yukleniyor());
-    var r; try { r = await api('sorular', { mod: S.mod, kaynak: S.mod === 'kontrol' ? '' : S.sekme, limit: 60 }); } catch (e) { kap.className = 'ekran'; return hataGoster(e); }
+    var kap = ekranHazir(true); kap.replaceChildren(yukleniyor()); await kuyrukBekle();
+    var r; try { r = await api('sorular', { mod: S.mod, kaynak: S.mod === 'kontrol' ? '' : S.sekme, limit: 30 }); } catch (e) { kap.className = 'ekran'; return hataGoster(e); }
     var sayi = r.sayilar || { soru: 0, kontrol: 0, kart: 0, hesap: 0 };
     if (ilk && S.sekme === 'kart' && !sayi.kart && sayi.hesap) return sorularEkrani('hesap');
     S.ref = { cariler: r.cariler, cariOneri: r.cariOneri, bankalar: r.bankalar }; S.kisayollar = r.kisayollar || [];
@@ -284,7 +298,7 @@
     var alan = h('div', { class: 'tekerlek', tabindex: '0' });
     kap.replaceChildren(ust, alan);
     if (!r.kartlar.length) { alan.appendChild(h('div', { class: 'bos' }, S.sekme === 'kontrol' ? 'Onay bekleyen atama yok' : 'Cevap bekleyen soru yok 🎉')); tk = null; return; }
-    var items = r.kartlar.map(function (k) { var it = { k: k, done: false }; soruOge(it); return it; });
+    var items = r.kartlar.map(function (k, i) { var it = { k: k, done: false, idx: i }; soruOge(it); return it; });
     tk = Tekerlek(alan, items);
     kap.appendChild(h('div', { class: 'ipucu' }, h('span', { style: { transform: 'rotate(0deg)', display: 'inline-flex' } }, ic('yukari', 16)), 'yukarı kaydır: sonraki'));
     requestAnimationFrame(function () { tk.yerles(); });
