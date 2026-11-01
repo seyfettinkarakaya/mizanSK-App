@@ -10,7 +10,7 @@ h1{font-size:26px;font-weight:700;letter-spacing:-.3px}
 .muted{color:var(--muted)}.sm{font-size:15px}.num{font-variant-numeric:tabular-nums}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
 .nav{height:calc(var(--nav) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);display:flex;background:var(--bg2);border-top:1px solid var(--line)}
-.nav button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#A59CB2;font-size:13px;font-weight:600;min-height:48px}
+.nav button{flex:1;padding:0 2px;background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#A59CB2;font-size:13px;font-weight:600;min-height:48px}
 .nav button.on{color:var(--acc)}
 .nav svg{width:24px;height:24px}
 .btn{min-height:50px;border-radius:16px;border:0;background:var(--acc);color:var(--acc-tx);font-weight:700;font-size:17px;padding:0 20px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
