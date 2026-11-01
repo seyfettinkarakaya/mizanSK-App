@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.19';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.20';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -261,7 +261,7 @@
   }
   async function cevapla(it) {
     var k = it.k;
-    try { var ac = it.acik ? it.acik.value.trim() : ''; await api('cevapla', { anahtar: k.anahtar, cari: it.sec.cari, etiket: it.sec.etiket, kural: !!it.sec.kural, mod: S.mod, aciklama: ac && ac !== k.aciklama ? ac : undefined }); } catch (e) { return toast(hataMetni(e)); }
+    try { var ac = it.acik ? it.acik.value.trim() : ''; await api('cevapla', { anahtar: k.anahtar, cari: it.sec.cari, etiket: it.sec.etiket, kural: !!it.sec.kural, mod: S.mod, aciklama: ac && ac !== k.aciklama ? ac : undefined }); } catch (e) { if (/Soru bulunamad/.test(e.message)) { toast('Bu soru zaten cevaplanmış: liste yenileniyor'); setTimeout(function () { sorularEkrani(S.sekme); }, 700); return; } return toast(hataMetni(e)); }
     it.done = true; it.el.classList.add('bitti'); it.el.querySelector('.sat .ic').replaceChildren(ic('ok', 18).firstChild);
     toast(k.aciklama.slice(0, 28) + ' → ' + it.sec.cari, 'Geri al', async function () { try { await api('geriAl'); sorularEkrani(S.sekme); } catch (e) { toast(hataMetni(e)); } });
     setTimeout(function () { if (tk) tk.git(tk.indeks() + 1); }, 220);
