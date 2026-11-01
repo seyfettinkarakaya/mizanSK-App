@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.18';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -36,9 +36,13 @@
     eylem: 'Bilinmeyen eylem', gizli: 'Bu kayıt gizli: önce PIN ile aç', pin: 'PIN yanlış', kilit: 'Çok fazla yanlış deneme: bir süre kilitli', pin_yok: 'Sunucuda PIN yok', pin_var: 'Sunucuda PIN zaten var', pin_bicim: 'PIN en az 8 rakam olmalı', mesgul: 'Sunucu meşgul, biraz sonra dene', kapali: 'Uygulama sunucuda kapatılmış (sabit>ayar API_KAPALI)' };
 
   async function api(eylem, d) {
-    var gecerli = S.g && S.g.e > Date.now() ? S.g : null, govde = await MC.imzala(S.cfg.token, eylem, d || {}, gecerli), r;
-    try { r = await fetch(S.cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: govde, redirect: 'follow', cache: 'no-store', referrerPolicy: 'no-referrer' }); } catch (e) { throw new Error('Bağlantı kurulamadı'); }
-    var j = null; try { j = await r.json(); } catch (e) { /* yanıt JSON değil */ }
+    var gecerli = S.g && S.g.e > Date.now() ? S.g : null, r, j = null, t0 = performance.now();
+    for (var deneme = 0; deneme < 2; deneme++) {                         // bağlantı koparsa/zaman aşımında bir kez yeniden dener (her denemede yeni nonce+imza)
+      var govde = await MC.imzala(S.cfg.token, eylem, d || {}, gecerli), ac = new AbortController(), zt = setTimeout(function () { ac.abort(); }, 45000);
+      try { r = await fetch(S.cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: govde, redirect: 'follow', cache: 'no-store', referrerPolicy: 'no-referrer', signal: ac.signal }); j = await r.json(); clearTimeout(zt); break; }
+      catch (e) { clearTimeout(zt); j = null; if (deneme === 1) throw new Error(e && e.name === 'AbortError' ? 'Sunucu yanıt vermedi (45 sn)' : 'Bağlantı kurulamadı'); }
+    }
+    S.son = { eylem: eylem, ms: Math.round(performance.now() - t0), sunucuMs: j && j.ms != null ? j.ms : null };
     if (!j) throw new Error('Yanıt okunamadı (adres doğru mu?)');
     if (!j.ok) { var er = new Error(HATA[j.e] || j.m || j.e || 'Hata'); er.kod = j.e; er.j = j; throw er; }
     return j.d === undefined ? j : j.d;
@@ -361,7 +365,8 @@
     var kap = ekranHazir(false); kap.replaceChildren(yukleniyor());
     var d; try { d = await api('durum'); } catch (e) { return hataGoster(e); }
     if (d.ayarlar) { S.ayar = d.ayarlar; }
-    var p = [h('div', { class: 'ust' }, h('h1', null, 'Durum'), h('span', { class: 'muted sm' }, d.mod + ' · ' + d.surum)),
+    var p = [h('div', { class: 'ust' }, h('h1', null, 'Durum'), h('span', { class: 'muted sm' }, d.mod + ' · sunucu ' + d.surum)),
+      h('div', { class: 'muted sm', style: { margin: '-4px 2px 8px' } }, 'Uygulama ' + APP_SURUM + (S.son ? ' · son istek (' + S.son.eylem + ') ' + S.son.ms + ' ms' + (S.son.sunucuMs != null ? ', sunucu ' + S.son.sunucuMs + ' ms' : '') : '')),
       h('div', { class: 'kart' }, h('div', { class: 'sm' }, 'Açık soru: ', h('b', null, d.soru), ' · kontrol: ', h('b', null, d.kontrol)), h('div', { class: 'muted sm', style: { marginTop: '6px' } }, 'Belgeler: ' + d.belge)),
       h('div', { class: 'satir-btn', style: { marginBottom: '14px' } }, h('button', { class: 'btn', onclick: async function (ev) { var b = ev.currentTarget; b.disabled = true; b.textContent = 'İşleniyor… (birkaç dk)'; try { var r = await api('isle'); toast('Sonuç: ' + r.durum + (r.islenen != null ? ' (' + r.islenen + ' belge)' : '')); } catch (e) { toast(hataMetni(e)); } durumEkrani(); } }, 'Şimdi işle'), h('button', { class: 'btn o', onclick: kilitle }, ic('kilit', 20), 'Kilitle'))];
     if (d.uyarilar.length) d.uyarilar.forEach(function (u) { p.push(h('div', { class: 'uyari' }, ic('uyari'), h('span', null, u.mesaj))); }); else p.push(h('div', { class: 'kart ok' }, '✓ Aktif uyarı yok'));
@@ -384,7 +389,7 @@
   function kilitle() { S.cfg = null; S.g = null; if (S.gTimer) clearTimeout(S.gTimer); S.ref = null; tk = null; var t = document.getElementById('toast'); if (t) t.remove(); document.querySelectorAll('.ort').forEach(function (o) { o.remove(); }); kilitEkrani(); }
 
   // ---------------------------------------------------------------- kurulum / kilit
-  function giris(baslik, alt, ...govde) { app.replaceChildren(h('div', { class: 'giris' }, h('div', { class: 'logo' }, h('img', { src: 'icon.svg', width: 64, height: 64, alt: '' })), h('h1', null, baslik), h('div', { class: 'muted', style: { margin: '6px 0 18px' } }, alt), govde)); }
+  function giris(baslik, alt, ...govde) { app.replaceChildren(h('div', { class: 'giris' }, h('div', { class: 'logo' }, h('img', { src: 'icon.svg', width: 64, height: 64, alt: '' })), h('h1', null, baslik), h('div', { class: 'muted', style: { margin: '6px 0 18px' } }, alt), govde, h('div', { class: 'muted sm', style: { marginTop: '18px', textAlign: 'center' } }, 'Uygulama ' + APP_SURUM))); }
   function kurulumEkrani() {
     var url = h('input', { class: 'alan', type: 'url', placeholder: 'https://script.google.com/macros/s/…/exec', autocomplete: 'off', autocapitalize: 'off' }), token = h('input', { class: 'alan', type: 'password', placeholder: 'Anahtar (apiKurulum çıktısı)', autocomplete: 'off' });
     var pin = h('input', { class: 'alan', type: 'password', inputmode: 'numeric', placeholder: 'PIN (en az 8 rakam)', autocomplete: 'off' }), pin2 = h('input', { class: 'alan', type: 'password', inputmode: 'numeric', placeholder: 'PIN tekrar', autocomplete: 'off' }), hata = h('div', { class: 'hata' }), dugme = h('button', { class: 'btn blok' }, 'Kur');
