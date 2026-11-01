@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-02.26';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-02.27';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -222,11 +222,14 @@
 
   /** Gmail sipariş e-postasından bulunan ürün adları (kesin eşleşmede tek sipariş, belirsizde olası siparişler). */
   function siparisBlogu(k) {
-    var sp = k.siparis; if (!sp || !sp.aday || !sp.aday.length) return null;
+    var sp = k.siparis; if (!sp) return null;
+    if (sp.yok) return h('div', { class: 'muted sm', style: { margin: '2px 0 8px' } }, 'Gmail’de bu tutar/tarihe uyan sipariş e-postası yok (başka hesap ya da kuponlu tutar olabilir).');
+    if (!sp.aday || !sp.aday.length) return null;
     var kutu = h('div', { style: { margin: '2px 0 8px', padding: '8px 10px', borderLeft: '3px solid currentColor', borderRadius: '4px' } });
-    kutu.appendChild(h('div', { class: 'etiket' }, sp.kesin ? 'Gmail siparişi · ' + sp.aday[0].no : 'Olası siparişler (belirsiz — hangisi?)'));
+    var bas = sp.kesin ? (sp.yakin ? 'Yakın sipariş · tutar ' + para(sp.aday[0].fark) + ' ₺ düşük (kupon/indirim?)' : 'Gmail siparişi · ' + sp.aday[0].no) : 'Olası siparişler (belirsiz — hangisi?)';
+    kutu.appendChild(h('div', { class: 'etiket' }, bas));
     sp.aday.forEach(function (a) {
-      kutu.appendChild(h('div', { class: 'sm', style: { margin: '3px 0 0' } }, (sp.kesin ? '' : tarihKisa(a.tarih) + ' · ' + para(a.tutar) + ' ₺ · ') + (a.urun.length ? a.urun.join(' · ') : '(ürün adı okunamadı)')));
+      kutu.appendChild(h('div', { class: 'sm', style: { margin: '3px 0 0' } }, (sp.kesin && !sp.yakin ? '' : tarihKisa(a.tarih) + ' · ' + para(a.tutar) + ' ₺ · ') + (a.urun.length ? a.urun.join(' · ') : '(ürün adı okunamadı)')));
     });
     return kutu;
   }
@@ -282,7 +285,7 @@
     toast('Kaydediliyor: ' + k.aciklama.slice(0, 24) + ' → ' + sec.cari);
     setTimeout(function () { if (tk) tk.git(tk.indeks() + 1); }, 150);
     kuyrukEkle(async function () {
-      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!sec.kural, mod: mod, aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip, siparisNo: k.siparis && k.siparis.kesin ? k.siparis.no : undefined }); }
+      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!sec.kural, mod: mod, aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip, siparisNo: k.siparis && k.siparis.kesin && !k.siparis.yakin ? k.siparis.no : undefined }); }
       catch (e) {
         if (/Soru bulunamad/.test(e.message)) { toast('Bu soru zaten cevaplanmış (liste yenilenince kaybolur)'); return; }
         it.done = false; it.el.classList.remove('bitti'); it.el.querySelector('.sat .ic').replaceChildren(ic('nokta', 18).firstChild);
