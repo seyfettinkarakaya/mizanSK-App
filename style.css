@@ -41,7 +41,7 @@ label.et{display:block;font-size:14px;font-weight:700;color:var(--muted);margin-
 .tekerlek{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;outline:0}
 .oge{position:absolute;left:0;right:0;top:0;border-radius:22px;overflow:hidden;background:var(--bg2);border:1px solid var(--line);will-change:transform,height}
 .oge .sat{position:absolute;inset:0;display:flex;align-items:center;gap:10px;padding:0 14px;opacity:calc(1 - var(--e,0)*1.6)}
-.oge .kt{position:absolute;inset:0;padding:14px 16px;opacity:calc((var(--e,0) - .35)*1.6);overflow-y:auto;pointer-events:none}
+.oge .kt{position:absolute;inset:0;padding:14px 16px;opacity:calc((var(--e,0) - .35)*1.6);overflow-y:auto;pointer-events:none;display:flex;flex-direction:column}.kt>*{flex:none}.kt>.kscroll{flex:1 1 auto;min-height:0;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.kt>.kakt{padding-top:8px}
 .oge.acik{background:var(--panel2);border-color:#4a3f5c;box-shadow:0 10px 30px rgba(0,0,0,.35)}.oge.acik .kt{pointer-events:auto}.oge.acik .sat{pointer-events:none}
 .oge.bitti .sat{opacity:calc(.6 - var(--e,0)*1.6)}
 .sat .ic{display:flex;color:var(--muted)}.oge.bitti .sat .ic{color:var(--ok)}.sat .ad{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}.sat .tu{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px}

@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.21';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.22';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -125,6 +125,7 @@
     }
     var bas = null;
     kap.addEventListener('pointerdown', function (e) {
+      if (e.target.closest && e.target.closest('.kscroll')) { bas = null; return; }               // kartın içindeki seçenek alanı kendi kaydırmasını kullanır (Onayla düğmesi altta sabit)
       bas = { y: e.clientY, pos: T.pos, t: performance.now(), son: [{ y: e.clientY, t: performance.now() }], surukle: false };
     });
     kap.addEventListener('pointermove', function (e) {
@@ -251,11 +252,9 @@
         chipCiz();
         var acikOk = k.kaynak === 'hesap' && k.adet === 1, acik = acikOk ? h('input', { class: 'alan', type: 'text', maxlength: '120', value: k.aciklama, style: { minHeight: '44px', margin: '2px 0 6px' } }) : null;
         if (acik) it.acik = acik;
-        kt.append(chipler);
-        if (acik) kt.append(h('div', { class: 'etiket', style: { margin: '10px 0 2px' } }, 'Açıklama (isteğe bağlı değiştir)'), acik);
-        kt.append(
-          h('label', { class: 'muted sm', style: { display: 'flex', gap: '10px', alignItems: 'center', minHeight: '44px' } }, kural, 'Bu mağaza hep böyle (kural)'),
-          h('div', { class: 'satir-btn' }, h('button', { class: 'btn', onclick: function () { if (!sec) return toast('Önce bir cari seç'); sec.kural = kural.checked; cevapla(it); } }, ic('ok', 20), 'Onayla'), h('button', { class: 'btn o', onclick: function () { if (tk) tk.git(tk.indeks() + 1); } }, 'Atla')));
+        var kscroll = h('div', { class: 'kscroll' }, chipler, acik ? h('div', { class: 'etiket', style: { margin: '10px 0 2px' } }, 'Açıklama (isteğe bağlı değiştir)') : null, acik,
+          h('label', { class: 'muted sm', style: { display: 'flex', gap: '10px', alignItems: 'center', minHeight: '44px' } }, kural, 'Bu mağaza hep böyle (kural)'));
+        kt.append(kscroll, h('div', { class: 'kakt' }, h('div', { class: 'satir-btn' }, h('button', { class: 'btn', onclick: function () { if (!sec) return toast('Önce bir cari seç'); sec.kural = kural.checked; cevapla(it); } }, ic('ok', 20), 'Onayla'), h('button', { class: 'btn o', onclick: function () { if (tk) tk.git(tk.indeks() + 1); } }, 'Atla'))));
       }
     }
     el.append(sat, kt); it.el = el; return el;
