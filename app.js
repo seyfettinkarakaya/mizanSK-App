@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-01.23';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-02.24';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -213,11 +213,22 @@
       out.push({ grup: 'Plan adayı', cari: p.cari, etiket: p.etiket.slice(), metin: p.cari + ' · plan ' + para(Math.abs(p.planTutar)) + ' ₺ · ' + tarihKisa(p.planTarih) + (p.fark ? ' · fark ' + (p.fark > 0 ? '+' : '') + para(p.fark) : '') + (et(p.etiket) ? ' · ' + et(p.etiket) : '') });
     });
     (k.gecmis || []).forEach(function (g) { out.push({ grup: 'Geçmişten (aynı tutar, ayın aynı günleri)', cari: g.cari, etiket: g.etiket.slice(), metin: g.cari + ' · ' + g.ay + '/' + g.pencere + ' ay' + (et(g.etiket) ? ' · ' + et(g.etiket) : '') }); });
-    (k.oneriler || []).slice(0, 3).forEach(function (o) { out.push({ grup: S.mod === 'kontrol' ? 'Mevcut atama / öneri' : 'Öneri', cari: o.cari, etiket: o.etiket.slice(), metin: o.cari + (et(o.etiket) ? ' · ' + et(o.etiket) : '') + (o.yuzde ? ' · %' + o.yuzde : '') }); });
+    (k.oneriler || []).slice(0, 3).forEach(function (o) { out.push({ grup: S.mod === 'kontrol' ? 'Mevcut atama / öneri' : o.kaynak === 'gmail' ? 'Siparişten (Gmail)' : 'Öneri', cari: o.cari, etiket: o.etiket.slice(), metin: o.cari + (et(o.etiket) ? ' · ' + et(o.etiket) : '') + (o.yuzde ? ' · %' + o.yuzde : '') }); });
     if (k.kaynak === 'hesap' && S.mod !== 'kontrol') S.kisayollar.forEach(function (c) { out.push({ grup: 'Hızlı', cari: c.cari, etiket: c.etiket.slice(), metin: c.ad }); });
     if (k.kendine) out = out.filter(function (x) { return x.grup === 'Hızlı'; }).concat(out.filter(function (x) { return x.grup !== 'Hızlı'; }));   // kendine FAST/iç transfer: 'Kendi hesabım' varsayılan
     if (S.mod === 'kontrol') { var ilkOneri = out.filter(function (x) { return x.grup.indexOf('Mevcut') === 0; }); out = ilkOneri.concat(out.filter(function (x) { return ilkOneri.indexOf(x) < 0; })); }   // Kontrol: mevcut atama varsayılan
     return out;
+  }
+
+  /** Gmail sipariş e-postasından bulunan ürün adları (kesin eşleşmede tek sipariş, belirsizde olası siparişler). */
+  function siparisBlogu(k) {
+    var sp = k.siparis; if (!sp || !sp.aday || !sp.aday.length) return null;
+    var kutu = h('div', { style: { margin: '2px 0 8px', padding: '8px 10px', borderLeft: '3px solid currentColor', borderRadius: '4px' } });
+    kutu.appendChild(h('div', { class: 'etiket' }, sp.kesin ? 'Gmail siparişi · ' + sp.aday[0].no : 'Olası siparişler (belirsiz — hangisi?)'));
+    sp.aday.forEach(function (a) {
+      kutu.appendChild(h('div', { class: 'sm', style: { margin: '3px 0 0' } }, (sp.kesin ? '' : tarihKisa(a.tarih) + ' · ' + para(a.tutar) + ' ₺ · ') + (a.urun.length ? a.urun.join(' · ') : '(ürün adı okunamadı)')));
+    });
+    return kutu;
   }
 
   function soruOge(it) {
@@ -252,7 +263,7 @@
         chipCiz();
         var acikOk = k.kaynak === 'hesap' && k.adet === 1, acik = acikOk ? h('input', { class: 'alan', type: 'text', maxlength: '120', value: k.aciklama, style: { minHeight: '44px', margin: '2px 0 6px' } }) : null;
         if (acik) it.acik = acik;
-        var kscroll = h('div', { class: 'kscroll' }, chipler, acik ? h('div', { class: 'etiket', style: { margin: '10px 0 2px' } }, 'Açıklama (isteğe bağlı değiştir)') : null, acik,
+        var kscroll = h('div', { class: 'kscroll' }, siparisBlogu(k), chipler, acik ? h('div', { class: 'etiket', style: { margin: '10px 0 2px' } }, 'Açıklama (isteğe bağlı değiştir)') : null, acik,
           h('label', { class: 'muted sm', style: { display: 'flex', gap: '10px', alignItems: 'center', minHeight: '44px' } }, kural, 'Bu mağaza hep böyle (kural)'));
         kt.append(kscroll, h('div', { class: 'kakt' }, h('div', { class: 'satir-btn' }, h('button', { class: 'btn', onclick: function () { if (!sec) return toast('Önce bir cari seç'); sec.kural = kural.checked; cevapla(it); } }, ic('ok', 20), 'Onayla'), h('button', { class: 'btn o', onclick: function () { if (tk) tk.git(tk.indeks() + 1); } }, 'Atla'))));
       }
@@ -271,7 +282,7 @@
     toast('Kaydediliyor: ' + k.aciklama.slice(0, 24) + ' → ' + sec.cari);
     setTimeout(function () { if (tk) tk.git(tk.indeks() + 1); }, 150);
     kuyrukEkle(async function () {
-      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!sec.kural, mod: mod, aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip }); }
+      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!sec.kural, mod: mod, aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip, siparisNo: k.siparis && k.siparis.kesin ? k.siparis.no : undefined }); }
       catch (e) {
         if (/Soru bulunamad/.test(e.message)) { toast('Bu soru zaten cevaplanmış (liste yenilenince kaybolur)'); return; }
         it.done = false; it.el.classList.remove('bitti'); it.el.querySelector('.sat .ic').replaceChildren(ic('nokta', 18).firstChild);
