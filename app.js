@@ -2,7 +2,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır (HTML enjeksiyonu yok); innerHTML YALNIZ aşağıdaki sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-02.27';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v1', APP_SURUM = '2026-11-02.28';
   var S = { cfg: null, g: null, gTimer: null, ekran: 'bugun', mod: 'soru', sekme: null, kisayollar: [], ref: null, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), gizlendi: 0 };
   var app = document.getElementById('app'), tk = null;
 
@@ -223,13 +223,13 @@
   /** Gmail sipariş e-postasından bulunan ürün adları (kesin eşleşmede tek sipariş, belirsizde olası siparişler). */
   function siparisBlogu(k) {
     var sp = k.siparis; if (!sp) return null;
-    if (sp.yok) return h('div', { class: 'muted sm', style: { margin: '2px 0 8px' } }, 'Gmail’de bu tutar/tarihe uyan sipariş e-postası yok (başka hesap ya da kuponlu tutar olabilir).');
+    if (sp.yok) return h('div', { class: 'muted sm', style: { margin: '2px 0 8px' } }, 'Gmail’de bu karta uyan sipariş e-postası yok (kartla çekilen tutar + tarih eşleşmedi; başka hesap olabilir).');
     if (!sp.aday || !sp.aday.length) return null;
     var kutu = h('div', { style: { margin: '2px 0 8px', padding: '8px 10px', borderLeft: '3px solid currentColor', borderRadius: '4px' } });
-    var bas = sp.kesin ? (sp.yakin ? 'Yakın sipariş · tutar ' + para(sp.aday[0].fark) + ' ₺ düşük (kupon/indirim?)' : 'Gmail siparişi · ' + sp.aday[0].no) : 'Olası siparişler (belirsiz — hangisi?)';
-    kutu.appendChild(h('div', { class: 'etiket' }, bas));
+    kutu.appendChild(h('div', { class: 'etiket' }, sp.kesin ? 'Gmail siparişi · ' + sp.aday[0].no : 'Olası siparişler (belirsiz — hangisi?)'));
     sp.aday.forEach(function (a) {
-      kutu.appendChild(h('div', { class: 'sm', style: { margin: '3px 0 0' } }, (sp.kesin && !sp.yakin ? '' : tarihKisa(a.tarih) + ' · ' + para(a.tutar) + ' ₺ · ') + (a.urun.length ? a.urun.join(' · ') : '(ürün adı okunamadı)')));
+      kutu.appendChild(h('div', { class: 'sm', style: { margin: '3px 0 0' } }, (sp.kesin ? '' : tarihKisa(a.tarih) + ' · ' + para(a.kart) + ' ₺ · ') + (a.urun.length ? a.urun.join(' · ') : '(ürün adı okunamadı)')));
+      if (a.odeme && a.odeme.indexOf('+') > 0) kutu.appendChild(h('div', { class: 'muted sm', style: { margin: '2px 0 0' } }, 'Sipariş ' + para(a.tutar) + ' ₺ · ödeme: ' + a.odeme));
     });
     return kutu;
   }
@@ -278,14 +278,23 @@
   S.kuyruk = []; S.kuyrukIs = null;
   function kuyrukEkle(is) { S.kuyruk.push(is); if (!S.kuyrukIs) S.kuyrukIs = (async function () { while (S.kuyruk.length) { var j = S.kuyruk.shift(); try { await j(); } catch (e) { /* iş kendi hatasını yönetir */ } } S.kuyrukIs = null; })(); }
   function kuyrukBekle() { return S.kuyrukIs || Promise.resolve(); }
+  /** Yüklenen kartlar (en çok 60) bitmeye yaklaşınca ve sunucuda daha fazla soru varsa liste kendiliğinden yenilenir (sekme değiştirmeye gerek kalmaz). */
+  function listeDoldur() {
+    if (!S.liste || S.yenileniyor || !(S.toplam > S.liste.length)) return;
+    var kalan = S.liste.filter(function (x) { return !x.done; }).length;
+    if (kalan > 8) return;
+    S.yenileniyor = true;
+    setTimeout(async function () { try { await kuyrukBekle(); await sorularEkrani(S.sekme); } finally { S.yenileniyor = false; } }, 900);
+  }
   async function cevapla(it) {
     var k = it.k, sec = it.sec, ac = it.acik ? it.acik.value.trim() : '', mod = S.mod, idx = it.idx;
     if (it.done) return;
     it.done = true; it.el.classList.add('bitti'); it.el.querySelector('.sat .ic').replaceChildren(ic('ok', 18).firstChild);
     toast('Kaydediliyor: ' + k.aciklama.slice(0, 24) + ' → ' + sec.cari);
+    listeDoldur();
     setTimeout(function () { if (tk) tk.git(tk.indeks() + 1); }, 150);
     kuyrukEkle(async function () {
-      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!sec.kural, mod: mod, aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip, siparisNo: k.siparis && k.siparis.kesin && !k.siparis.yakin ? k.siparis.no : undefined }); }
+      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!sec.kural, mod: mod, aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip, siparisNo: k.siparis && k.siparis.kesin ? k.siparis.no : undefined }); }
       catch (e) {
         if (/Soru bulunamad/.test(e.message)) { toast('Bu soru zaten cevaplanmış (liste yenilenince kaybolur)'); return; }
         it.done = false; it.el.classList.remove('bitti'); it.el.querySelector('.sat .ic').replaceChildren(ic('nokta', 18).firstChild);
@@ -303,7 +312,7 @@
   async function sorularEkrani(sekme) {
     var ilk = !sekme && !S.sekme; S.sekme = sekme || S.sekme || 'kart'; S.mod = S.sekme === 'kontrol' ? 'kontrol' : 'soru';
     var kap = ekranHazir(true); kap.replaceChildren(yukleniyor()); await kuyrukBekle();
-    var r; try { r = await api('sorular', { mod: S.mod, kaynak: S.mod === 'kontrol' ? '' : S.sekme, limit: 30 }); } catch (e) { kap.className = 'ekran'; return hataGoster(e); }
+    var r; try { r = await api('sorular', { mod: S.mod, kaynak: S.mod === 'kontrol' ? '' : S.sekme, limit: 60 }); } catch (e) { kap.className = 'ekran'; return hataGoster(e); }
     var sayi = r.sayilar || { soru: 0, kontrol: 0, kart: 0, hesap: 0 };
     if (ilk && S.sekme === 'kart' && !sayi.kart && sayi.hesap) return sorularEkrani('hesap');
     S.ref = { cariler: r.cariler, cariOneri: r.cariOneri, bankalar: r.bankalar }; S.kisayollar = r.kisayollar || [];
@@ -313,6 +322,7 @@
     kap.replaceChildren(ust, alan);
     if (!r.kartlar.length) { alan.appendChild(h('div', { class: 'bos' }, S.sekme === 'kontrol' ? 'Onay bekleyen atama yok' : 'Cevap bekleyen soru yok 🎉')); tk = null; return; }
     var items = r.kartlar.map(function (k, i) { var it = { k: k, done: false, idx: i }; soruOge(it); return it; });
+    S.liste = items; S.toplam = r.toplam || items.length;                       // sunucuda daha fazla soru varsa (toplam > yüklenen) liste azalınca otomatik yenilenir
     tk = Tekerlek(alan, items);
     kap.appendChild(h('div', { class: 'ipucu' }, h('span', { style: { transform: 'rotate(0deg)', display: 'inline-flex' } }, ic('yukari', 16)), 'yukarı kaydır: sonraki'));
     requestAnimationFrame(function () { tk.yerles(); });
