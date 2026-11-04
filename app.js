@@ -300,6 +300,7 @@
         });
         parcalar.push(h('button', { class: 'baska' + (sec && sec.i === 'x' ? ' s' : ''), onclick: async function () { var r = await cariSec(sec ? Object.assign({}, sec, it.acik ? { aciklama: it.acik.value } : {}) : (it.acik ? { aciklama: it.acik.value } : null)); if (r) { it.sec = sec = { cari: r.cari, etiket: r.etiket, kural: r.kural, i: 'x' }; kural.checked = r.kural; if (it.acik && r.aciklama != null) it.acik.value = r.aciklama; secCiz(); } } },
           h('b', null, sec && sec.i === 'x' ? sec.cari + ' · ' + (sec.etiket || []).filter(String).join(' / ') : 'Başka cari'), h('span', { class: 'muted sm' }, 'arama · etiket · kural ›')));
+        if (k.bolunebilir) parcalar.push(h('button', { class: 'baska', onclick: function () { bolEkrani(it); } }, h('b', null, 'Böl'), h('span', { class: 'muted sm' }, 'tutarı birden çok cariye ayır ›')));
         kutu.replaceChildren.apply(kutu, parcalar);
       }
       secCiz();
@@ -337,6 +338,37 @@
       S.onb = {};
       toast(k.aciklama.slice(0, 28) + ' → ' + sec.cari, 'Geri al', async function () { try { await kuyrukBekle(); await api('geriAl'); S.onb = {}; sorularEkrani(S.sekme, 'taze'); } catch (e) { toast(hataMetni(e)); } });
       listeDoldur();
+    });
+  }
+  /** Bölme: satır tutarı birden çok cariye ayrılır; parçaların toplamı tutara eşit olmadan kaydedilmez. Tutarlar mutlak girilir, işaret satırdan. */
+  function tutarOku(v) { var s = String(v || '').trim().replace(/\s/g, ''); if (/,\d{1,2}$/.test(s)) s = s.replace(/\./g, '').replace(',', '.'); else s = s.replace(/,/g, ''); var n = Number(s); return isFinite(n) ? Math.round(Math.abs(n) * 100) / 100 : NaN; }
+  function bolEkrani(it) {
+    var k = it.k, toplam = Math.round(Math.abs(k.tutar) * 100), ilk = it.sec ? { cari: it.sec.cari, etiket: (it.sec.etiket || []).slice() } : { cari: '', etiket: [] };
+    var parcalar = [{ cari: ilk.cari, etiket: ilk.etiket, tutar: '' }, { cari: '', etiket: [], tutar: '' }];
+    altSayfa(function (sy, kapat) {
+      var liste = h('div'), kalanEl = h('div', { class: 'b17', style: { margin: '10px 0' } }), kaydet = h('button', { class: 'btn blok' }, 'Böl ve kaydet');
+      function hesap() { var t = 0, tamam = parcalar.length >= 2; parcalar.forEach(function (p) { var n = tutarOku(p.tutar); if (!(n > 0) || !p.cari) tamam = false; else t += Math.round(n * 100); }); return { kalan: toplam - t, tamam: tamam && t === toplam }; }
+      function ciz() {
+        liste.replaceChildren.apply(liste, parcalar.map(function (p, i) {
+          var tu = h('input', { class: 'alan', type: 'text', inputmode: 'decimal', placeholder: 'Tutar', value: p.tutar, style: { maxWidth: '140px' }, oninput: function () { p.tutar = tu.value; durum(); } });
+          return h('div', { class: 'satir', style: { gap: '8px', margin: '6px 0' } },
+            h('button', { class: 'btn o', style: { flex: 1, textAlign: 'left' }, onclick: async function () { var r = await cariSec(p.cari ? { cari: p.cari, etiket: p.etiket } : null); if (r) { p.cari = r.cari; p.etiket = r.etiket || []; ciz(); } } }, p.cari ? p.cari + ((p.etiket || []).filter(String).length ? ' · ' + p.etiket.filter(String).join(' / ') : '') : 'Cari seç ›'),
+            tu, parcalar.length > 2 ? h('button', { class: 'btn o', style: { flex: '0 0 48px' }, onclick: function () { parcalar.splice(i, 1); ciz(); } }, '×') : null);
+        }));
+        durum();
+      }
+      function durum() { var d = hesap(); kalanEl.textContent = d.kalan === 0 ? 'Toplam tutuyor' : 'Kalan: ' + para(d.kalan / 100) + ' ₺'; kaydet.disabled = !d.tamam; }
+      kaydet.onclick = async function () {
+        var d = hesap(); if (!d.tamam) return; kaydet.disabled = true; kaydet.textContent = 'Kaydediliyor…';
+        try { var r = await api('bol', { anahtar: k.anahtar, mod: 'soru', parcalar: parcalar.map(function (p) { return { cari: p.cari, etiket: p.etiket, tutar: tutarOku(p.tutar) }; }) }); }
+        catch (e) { kaydet.disabled = false; kaydet.textContent = 'Böl ve kaydet'; return toast(hataMetni(e)); }
+        kapat(); it.done = true; it.el.classList.add('bitti'); S.sayilar.soru = Math.max(0, (S.sayilar.soru || 0) - 1); rozetleriCiz(); S.onb = {};
+        toast(r.adet + ' parçaya bölündü', r.geriAl ? 'Geri al' : null, async function () { try { await api('geriAl'); S.onb = {}; sorularEkrani(S.sekme, 'taze'); } catch (e) { toast(hataMetni(e)); } });
+        if (tk) tk.git(tk.indeks() + 1); listeDoldur();
+      };
+      sy.append(h('div', { class: 'b18' }, 'Böl: ' + k.aciklama), h('div', { class: 'muted sm', style: { marginBottom: '8px' } }, tutarMetni(k) + ' · ' + tarihKisa(k.tarih)), liste,
+        h('button', { class: 'baska', onclick: function () { if (parcalar.length < 10) { parcalar.push({ cari: '', etiket: [], tutar: '' }); ciz(); } } }, h('b', null, '+ Parça ekle')), kalanEl, kaydet);
+      ciz();
     });
   }
   async function maasCevap(it, mod) {
