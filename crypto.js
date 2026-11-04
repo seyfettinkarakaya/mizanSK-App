@@ -44,6 +44,6 @@
     return JSON.parse(dec.decode(d));
   }
 
-  var api = { asciiJson: asciiJson, imzala: imzala, hmacHex: hmacHex, sifrele: sifrele, coz: coz, nonce: nonce };
+  var api = { asciiJson: asciiJson, imzala: imzala, hmacHex: hmacHex, sifrele: sifrele, coz: coz, nonce: nonce, b64: b64, unb64: unb64 };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else kok.MizanCrypto = api;
 })(typeof self !== 'undefined' ? self : globalThis);
