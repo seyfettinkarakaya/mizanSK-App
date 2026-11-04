@@ -75,3 +75,9 @@ label.et{display:block;font-size:14px;font-weight:700;color:var(--muted);margin-
 .logo{width:64px;height:64px;margin-bottom:16px;border-radius:16px}
 .yuk{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted);padding:40px 0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* 2.18: kartta cari seçimi sabit satırda; kısayollar tek satırda yan yana kayar */
+.sabit-sec{display:flex;gap:8px;align-items:stretch;border-top:1px solid var(--line);padding-top:6px;margin-bottom:6px}
+.sabit-sec .baska{flex:1;border-top:0;margin-top:0;min-height:48px}.sabit-sec .baska.bol{flex:0 0 auto;padding:0 16px;border:1px solid var(--line);border-radius:12px}
+.hizli-satir{display:flex;gap:8px;overflow-x:auto;white-space:nowrap;padding-bottom:4px;-webkit-overflow-scrolling:touch}.hizli-satir .chip{flex:none}
+.kt .aday{min-height:48px;padding:4px 12px;margin-bottom:4px}
