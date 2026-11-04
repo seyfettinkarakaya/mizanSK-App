@@ -345,7 +345,7 @@
   }
 
   // ---------------------------------------------------------------- Sorular ekranı (Kart | Hesap)
-  var ISTEMCI_LIMIT = 40;
+  var ISTEMCI_LIMIT = 100;
   async function soruListesiAl(sekme, taze) {
     var mod = sekme === 'kontrol' ? 'kontrol' : 'soru', r = await api('sorular', { mod: mod, kaynak: mod === 'kontrol' ? '' : sekme, limit: ISTEMCI_LIMIT, taze: taze ? true : undefined });
     S.onb[sekme] = { r: r, t: Date.now() }; S.ref = { cariler: r.cariler, cariOneri: r.cariOneri, bankalar: r.bankalar }; S.kisayollar = r.kisayollar || []; S.bugunIso = r.bugun; S.sayilar = r.sayilar || S.sayilar; rozetleriCiz();
