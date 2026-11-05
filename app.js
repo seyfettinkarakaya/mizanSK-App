@@ -4,9 +4,9 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır; innerHTML YALNIZ sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.02';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.03';
   var S = { cfg: null, pin: null, g: null, gTimer: null, ekran: 'soru', sekme: null, bas: {}, kisayollar: [], ref: null, onb: {}, gec: {}, dokundu: false, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), faceId: null, kilitli: false, sayilar: {} };
-  var app = document.getElementById('app'), tk = null;
+  var app = document.getElementById('app');
 
   // ---------------------------------------------------------------- yardımcılar
   function h(tag, a) {
@@ -24,7 +24,7 @@
     oneri: '<path d="M4 6h10M4 12h10M4 18h7"/><path d="M16 12l2.5 2.5L23 10"/>', islem: '<path d="M6 4l14 8-14 8z"/>', yapistir: '<rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/>',
     ok: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', kilit: '<rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>', nokta: '<circle cx="12" cy="12" r="4" fill="currentColor"/>',
     yuz: '<path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="9" cy="10" r=".9" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r=".9" fill="currentColor" stroke="none"/><path d="M12 10v3h-1M9 15.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5"/>',
-    uyari: '<path d="M12 4l9 16H3z"/><path d="M12 10v4"/>', geri: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-4"/>'
+    uyari: '<path d="M12 4l9 16H3z"/><path d="M12 10v4"/>', ara: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>', sag: '<path d="M9 6l6 6-6 6"/>', not: '<path d="M5 4h14v12l-4 4H5z"/><path d="M15 20v-4h4M8 9h8M8 13h5"/>', geri: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-4"/>'
   };
   function ic(n, z) { var s = h('span', { class: 'ic' }); s.innerHTML = '<svg width="' + (z || 22) + '" height="' + (z || 22) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + IC[n] + '</svg>'; return s; }
   function para(n) { return Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -158,55 +158,6 @@
     sil: function () { localStorage.removeItem(DEPO_FID); S.pin = null; }
   };
 
-  // ---------------------------------------------------------------- tekerlek (aktif kart büyük, komşular ince satır)
-  var ROW = 52, GAP = 8, SOL = 2, DRAG = 170;
-  function Tekerlek(kap, ogeler) {
-    var T = { pos: 0, anim: null }, items = ogeler;
-    items.forEach(function (it) { kap.appendChild(it.el); });
-    function yerles() {
-      var n = items.length; if (!n) return;
-      var kapH = kap.clientHeight, sol = kapH >= 700 ? SOL : 1, cardH = Math.max(300, Math.min(520, kapH - 2 * sol * (ROW + GAP) - 4)), hedef = sol * (ROW + GAP), pos = T.pos;
-      var hh = items.map(function (_, i) { return ROW + (cardH - ROW) * Math.max(0, 1 - Math.abs(i - pos)); }), tops = [], acc = 0;
-      hh.forEach(function (x, i) { tops[i] = acc; acc += x + GAP; });
-      var kay = hedef - (tops[Math.floor(pos)] + (pos - Math.floor(pos)) * (tops[Math.min(n - 1, Math.floor(pos) + 1)] - tops[Math.floor(pos)]));
-      items.forEach(function (it, i) {
-        var e = Math.max(0, 1 - Math.abs(i - pos));
-        it.el.style.transform = 'translateY(' + (tops[i] + kay) + 'px)'; it.el.style.height = hh[i] + 'px'; it.el.style.setProperty('--e', e);
-        it.el.classList.toggle('acik', Math.round(pos) === i);
-      });
-      var ak = items[Math.max(0, Math.min(n - 1, Math.round(pos)))]; if (ak && ak.k) S.soruAnahtar = ak.k.anahtar;   // kilit/yeniden çizimde aynı karta dönmek için
-    }
-    function git(hedefPos, sure) {
-      hedefPos = Math.max(0, Math.min(items.length - 1, hedefPos));
-      if (T.anim) cancelAnimationFrame(T.anim);
-      var bas = T.pos, d = sure == null ? 260 : sure, t0 = performance.now();
-      (function adim(t) { var x = Math.min(1, (t - t0) / d), e = 1 - Math.pow(1 - x, 3); T.pos = bas + (hedefPos - bas) * e; yerles(); if (x < 1) T.anim = requestAnimationFrame(adim); else { T.anim = null; T.pos = hedefPos; yerles(); } })(t0);
-    }
-    var y0 = null, p0 = 0, bastir = false, hareket = false;
-    kap.addEventListener('pointerdown', function (e) {
-      if (e.target.closest('.kt') && e.target.closest('.oge.acik')) return;        // açık kartın içi: kaydırma/dokunma karta ait
-      y0 = e.clientY; p0 = T.pos; hareket = false; S.dokundu = true; if (T.anim) { cancelAnimationFrame(T.anim); T.anim = null; }
-    });
-    kap.addEventListener('pointermove', function (e) {
-      if (y0 == null) return;
-      var dy = e.clientY - y0; if (Math.abs(dy) > 6) hareket = true;
-      if (!hareket) return;
-      T.pos = Math.max(-0.3, Math.min(items.length - 0.7, p0 - dy / DRAG)); yerles();
-    });
-    kap.addEventListener('click', function (e) { if (bastir) { e.stopPropagation(); e.preventDefault(); } }, true);
-    function birak() {
-      if (y0 == null) return; y0 = null;
-      if (hareket) { bastir = true; setTimeout(function () { bastir = false; }, 60); git(Math.round(T.pos)); }
-    }
-    kap.addEventListener('pointerup', birak); kap.addEventListener('pointercancel', birak); kap.addEventListener('pointerleave', birak);
-    var acc = 0; kap.addEventListener('wheel', function (e) { e.preventDefault(); acc += e.deltaY; if (Math.abs(acc) < 40) return; var d = Math.sign(acc); acc = 0; git(Math.round(T.pos) + d); }, { passive: false });
-    kap.addEventListener('keydown', function (e) { if (e.key === 'ArrowDown') git(Math.round(T.pos) + 1); else if (e.key === 'ArrowUp') git(Math.round(T.pos) - 1); });
-    kap.addEventListener('click', function (e) { var o = e.target.closest('.oge'); if (!o || o.classList.contains('acik')) return; var i = items.findIndex(function (x) { return x.el === o; }); if (i >= 0) git(i); });
-    T.git = git; T.yerles = yerles; T.indeks = function () { return Math.round(T.pos); }; yerles();
-    window.addEventListener('resize', yerles);
-    return T;
-  }
-
   // ---------------------------------------------------------------- cari seçimi (alt sayfa): arama, sık etiketler, 5 etiket, açıklama, kural
   function cariSec(baslangic) {
     return new Promise(function (coz) {
@@ -214,11 +165,11 @@
       altSayfa(function (sy, kapat) {
         function bitir(v) { if (bitti) return; bitti = true; kapat(); coz(v); }
         sy.parentNode.addEventListener('click', function (e) { if (e.target === sy.parentNode) bitir(null); });
-        var ara = h('input', { class: 'alan', placeholder: 'Cari ara…', type: 'text', autocomplete: 'off' }), liste = h('div', { class: 'liste' });
+        var ara = h('input', { class: 'alan ara-alan', placeholder: 'Cari ara…', type: 'search', autocomplete: 'off' }), liste = h('div', { class: 'liste' });
         function ciz() {
           var q = ara.value.trim().toLocaleLowerCase('tr-TR');
           liste.replaceChildren.apply(liste, (S.ref.cariler || []).filter(function (c) { return !q || (c.cari + ' ' + c.sinif).toLocaleLowerCase('tr-TR').indexOf(q) >= 0; }).slice(0, 60).map(function (c) {
-            return h('div', { class: 'li', role: 'button', tabindex: '0', onclick: function () { etiketAdimi(c.cari); } }, h('div', { class: 'g' }, h('b', null, c.cari), h('span', { class: 'muted sm' }, c.sinif)));
+            return h('div', { class: 'li cs', role: 'button', tabindex: '0', onclick: function () { etiketAdimi(c.cari); } }, cariSimge(c.cari, 40), h('div', { class: 'g' }, h('b', null, c.cari)), h('span', { class: 'muted sm' }, c.sinif));
           }));
         }
         function etiketAdimi(cari) {
@@ -270,100 +221,140 @@
   }
   function kaynakCipi(k) { return h('span', { class: 'cip' }, h('i', { class: 'dot ' + (k.kaynak === 'hesap' ? 'tp' : 'kk') }), k.gizli ? (k.banka || 'hesap') : (k.banka || '') + (k.kaynak === 'hesap' ? ' hesap' : ' kart')); }
 
-  /** 2.19 kart tasarımı: banka şeridi + rozet, hesap adı ve son 4, (hesap) akış satırı, bankadaki açıklama, tutar, eski kayıt kutusu, deftere yazılacak açıklama (düzenlenebilir), ≤3 öneri, kısayol satırı, alt satır: Atla · Başka cari · Böl · Onayla. */
-  var BANKA_RENK = { kuveyt: '#1aa36a', qnb: '#9a5ad6', vakif: '#f2b705' };
-  function bankaRengi(b) { var k = String(b || '').toLowerCase().replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/ğ/g, 'g'); return BANKA_RENK[k] || '#5b6472'; }
-  function alici(k) { return String(k.aciklama || '').split(' — ')[0]; }
-  function kartUst(k) {
-    var ad = k.gizli ? (k.banka || 'hesap') : (k.banka || '') + (k.kaynak === 'hesap' ? '' : ' kart');
-    return h('div', { class: 'ust2' }, h('span', { class: 'banka' }, h('i', { style: { background: bankaRengi(k.banka) } }), ad, k.hesap || k.hesapSon4 ? h('span', { class: 'hesap' }, (k.hesap || '') + (k.hesapSon4 ? ' ····' + k.hesapSon4 : '')) : null),
-      h('span', { class: 'tarih' }, tarihKisa(k.tarih) + (k.adet > 1 ? ' · ' + k.adet + ' kalem' : '') + (k.provizyon ? ' · provizyon' : '')));
-  }
-  function eskiKutu(k) {
-    var e = k.eski; if (!e) return null;
-    var ad = e.kural === 'cevap' ? 'ÖNCEKİ CEVABIN' : e.kural === 'birebir' ? 'ESKİ KAYIT · AYNI GÜN, AYNI TUTAR' : e.kural === 'maaş' ? 'MAAŞ KALEMİ' : 'ESKİ KAYIT · ' + e.kural;
-    return h('div', { class: 'eski' }, h('small', null, ad), h('b', null, e.cari || '?'), e.tutar != null ? ' · ' + para(Math.abs(e.tutar)) + ' ₺' : '', e.tarih ? ' · ' + tarihKisa(e.tarih) : '', e.acik ? h('div', { class: 'muted sm' }, e.acik) : null, e.not ? h('div', { class: 'sari sm' }, e.not) : null);
-  }
-  /** Tekerlek öğesi: kapalı satır + açık kart. Maaş sorusu: maskeli (Face ID yoksa) ya da açık; cevap düğmelerle (bes | bes_yok | kesinti + cari). */
-  function ekle(kap, parcalar) { kap.append.apply(kap, parcalar.filter(function (x) { return x != null && x !== false; })); }   // DOM append null'ı metin basar
-  function soruOge(it) {
-    var k = it.k, el = h('div', { class: 'oge' + (it.done ? ' bitti' : '') });
-    var sat = h('div', { class: 'sat' }, ic(it.done ? 'ok' : 'nokta', 18), h('i', { class: 'bdot', style: { background: bankaRengi(k.banka) } }), h('span', { class: 'ad' }, k.gizli ? 'Maaş · maskeli' : k.aciklama), h('span', { class: 'tu' }, tutarMetni(k)));
-    var kt = h('div', { class: 'kt' }), serit = h('div', { class: 'serit', style: { background: bankaRengi(k.banka) } });
-    if (k.maas) {
-      ekle(kt, [serit, kartUst(k), h('div', { class: 'ham' }, h('small', null, 'BANKADAKİ AÇIKLAMA'), k.gizli ? 'Mevduat İşlemleri · ●●●● ●●●●●●●' : k.aciklama), h('div', { class: 'big tp' + (k.gizli ? ' maske' : '') }, k.gizli ? '+●●●.●●●,●● ₺' : tutarMetni(k)),
-        k.gizli && !S.faceId ? h('button', { class: 'baglanti', onclick: async function () { if (await gizliAc()) sorularEkrani(S.sekme, 'yeniden'); } }, 'İçeriği göster · şifre ile ›') : null,
-        h('div', { class: 'muted sm', style: { margin: '4px 0 10px' } }, k.gizli ? 'Açıklama ve tutar telefona gelmez; deftere sunucu tam açıklamayla yazar.' : 'Face ID ile açıldı; maaş açık görünür.'),
-        h('div', { class: 'etiket' }, 'Bu gelir ne?'),
-        h('button', { class: 'btn blok', style: { margin: '8px 0' }, onclick: function () { maasCevap(it, 'bes'); } }, 'Aylık maaş · BES ayrıştır'),
-        h('button', { class: 'btn o blok', style: { margin: '0 0 8px' }, onclick: function () { maasCevap(it, 'bes_yok'); } }, 'Prim / diğer · BES yok'),
-        h('button', { class: 'btn o blok', onclick: async function () { var c = await cariSec(null); if (c && c.cari) maasCevap(it, 'kesinti', c.cari); } }, 'Kesinti var · hangi cari?'),
-        h('div', { class: 'kakt' }, h('div', { class: 'satir-btn' }, h('button', { class: 'btn o', onclick: function () { if (tk) tk.git(tk.indeks() + 1); } }, 'Atla'), h('span', { class: 'muted sm', style: { flex: 1, alignSelf: 'center', textAlign: 'center' } }, 'cevap yukarıdaki düğmelerden')))]);
-    } else {
-      var acikOk = k.adet === 1 && !k.gizli, acik = acikOk ? h('input', { class: 'alan ad-alan', type: 'text', maxlength: '120', value: k.aciklama, 'aria-label': 'Deftere yazılacak açıklama' }) : null;   // bankadaki metinle gelir; istersen düzelt
-      it.acik = acik;
-      var secenekler = secenekleriKur(k, 'soru'), say3 = 0; secenekler = secenekler.filter(function (o) { return o.hizli || ++say3 <= 3; });   // kartta en çok 3 öneri (kısayollar ayrı satır)
-      var sec = it.sec = it.sec || (secenekler[0] ? { cari: secenekler[0].cari, etiket: secenekler[0].etiket.slice(), kural: false, i: 0 } : null), kutu = h('div'), kural = h('input', { type: 'checkbox' });
-      var baska = h('button', { class: 'btn o b2' }, 'Başka cari'), bol = k.bolunebilir ? h('button', { class: 'btn o b3', onclick: function () { bolEkrani(it); } }, 'Böl') : null;
-      baska.onclick = async function () {
-        var r = await cariSec(sec ? Object.assign({}, sec, it.acik ? { aciklama: it.acik.value } : {}) : (it.acik ? { aciklama: it.acik.value } : null)); if (!r || !r.cari) return;
-        it.sec = sec = { cari: r.cari, etiket: (r.etiket || []).slice(), kural: !!r.kural, i: 'x' }; if (r.aciklama && it.acik) it.acik.value = r.aciklama; secCiz();
-      };
-      function secCiz() {
-        var gruplar = {}, sira = [], parcalar = [];
-        secenekler.forEach(function (o, i) { if (!gruplar[o.grup]) { gruplar[o.grup] = []; sira.push(o.grup); } gruplar[o.grup].push([o, i]); });
-        sira.forEach(function (g) {
-          parcalar.push(h('div', { class: 'etiket', style: { margin: '4px 0 2px' } }, g));
-          if (g === 'Hızlı') { parcalar.push(h('div', { class: 'hizli-satir' }, gruplar[g].map(function (x) { var o = x[0], i = x[1]; return h('span', { class: 'chip' + (sec && sec.i === i ? ' s' : ''), onclick: function () { it.sec = sec = { cari: o.cari, etiket: o.etiket.slice(), kural: kural.checked, i: i }; secCiz(); } }, o.metin); }))); return; }
-          gruplar[g].forEach(function (x) {
-            var o = x[0], i = x[1];
-            parcalar.push(h('label', { class: 'aday' + (sec && sec.i === i ? ' s' : ''), onclick: function () { it.sec = sec = { cari: o.cari, etiket: o.etiket.slice(), kural: kural.checked, i: i }; secCiz(); } },
-              h('i', { class: 'radyo' }), h('span', { class: 'g' }, h('b', null, o.metin), o.alt ? h('span', { class: 'muted sm' }, o.alt) : null)));
-          });
-        });
-        kutu.replaceChildren.apply(kutu, parcalar);
-        baska.className = 'btn o b2' + (sec && sec.i === 'x' ? ' s' : ''); baska.replaceChildren(sec && sec.i === 'x' ? sec.cari : 'Başka cari');
-      }
-      secCiz();
-      ekle(kt, [serit, kartUst(k), k.kullanan ? h('span', { class: 'kullanan' }, 'Kullanan: ' + k.kullanan) : null,
-        k.kaynak === 'hesap' && k.adet === 1 && !k.kendine ? h('div', { class: 'akis' }, (k.hesap || k.banka || '') + (k.tutar < 0 ? ' → ' : ' ← '), h('b', null, alici(k))) : null,
-        h('div', { class: 'ham' }, h('small', null, 'BANKADAKİ AÇIKLAMA'), k.aciklama),
-        h('div', { class: 'big' + (k.toplam > 0 || k.tutar > 0 ? ' tp' : ' mp') }, tutarMetni(k), k.adet > 1 && k.tutar !== '' ? h('span', { class: 'muted sm', style: { marginLeft: '8px' } }, k.adet + ' × ' + para(Math.abs(k.tutar))) : null),
-        eskiKutu(k), acik ? h('div', { class: 'alan2' }, h('small', null, 'Deftere yazılacak açıklama'), acik) : null]);
-      var kscroll = h('div', { class: 'kscroll' }, siparisBlogu(k), kutu, h('label', { class: 'muted sm', style: { display: 'flex', gap: '10px', alignItems: 'center', minHeight: '44px' } }, kural, 'Bu satıcı hep böyle (kural)'));
-      kt.append(kscroll, h('div', { class: 'kakt' }, h('div', { class: 'satir-btn alt4' }, h('button', { class: 'btn o b1', onclick: function () { if (tk) tk.git(tk.indeks() + 1); } }, 'Atla'), baska, bol,
-        h('button', { class: 'btn ana', onclick: function () { if (!sec) return toast('Önce cari seç'); cevapla(it); } }, '✓ Onayla'))));   // h() boşları atar
+  /** 2.20 Sorular: gelen kutusu (liste, kaydırarak onay, toplu onay) + satıra dokununca soru ekranı (tek dokunuşla cevap). */
+  var BANKA_RENK = { kuveyt: '#1FA971', qnb: '#9A6BE0', vakif: '#E9B10C' }, SINIF_RENK = [['aile', '#F49AC1'], ['ev', '#5EC8C0'], ['muhtelif', '#F5C451'], ['hasene', '#B79CFF'], ['birikim', '#4ADE9A'], ['yatırım', '#7AA2FF'], ['karakaya', '#FFB37A'], ['maaş', '#4ADE9A'], ['kredi', '#FF8E7A']];
+  function tk_(x) { return String(x || '').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/ğ/g, 'g'); }
+  function bankaRengi(b) { return BANKA_RENK[tk_(b)] || '#7B8494'; }
+  function bankaRozet(b) { return h('span', { class: 'brz', style: { background: bankaRengi(b) } }, String(b || '?').charAt(0).toLocaleUpperCase('tr-TR')); }
+  function cariRengi(cari) { var c = (S.ref && S.ref.cariler || []).filter(function (x) { return x.cari === cari; })[0], sn = c ? String(c.sinif).toLocaleLowerCase('tr-TR') : ''; for (var i = 0; i < SINIF_RENK.length; i++) if (sn.indexOf(SINIF_RENK[i][0]) >= 0) return SINIF_RENK[i][1]; return cari === '_Nakil' ? '#7AA2FF' : '#A7B1C0'; }
+  function cariSimge(cari, z) { var r = cariRengi(cari), t = String(cari || '?').replace(/^_/, '').split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toLocaleUpperCase('tr-TR'); return h('span', { class: 'csim', style: { width: z + 'px', height: z + 'px', color: r, background: r + '26' } }, t); }
+  function ad_(k) { return k.gizli ? 'Maaş · maskeli' : (k.alici || k.aciklama); }
+  function etMetni(e) { return (e || []).filter(String).join(' / '); }
+  /** Kartın en iyi önerisi (kısayollar hariç): {cari, etiket, alt} ya da null. */
+  function enIyi(k) { if (k.gizli || k.maas || k.sistem) return null; var o = secenekleriKur(k, 'soru').filter(function (x) { return !x.hizli; })[0]; return o ? { cari: o.cari, etiket: o.etiket.slice(), alt: o.alt || o.grup } : null; }
+  function gun_(iso) { var g = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'], d = new Date(iso + 'T12:00:00'); return Number(iso.slice(8, 10)) + ' ' + ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][Number(iso.slice(5, 7)) - 1] + ' ' + g[d.getDay()]; }
+
+  /** Liste satırı: seçim halkası, banka rozeti, karşı taraf, önerilen cari, tutar. Sağa kaydır: önerilenle onayla; sola: atla. Dokun: soru ekranı. */
+  function satirOge(it, i) {
+    var k = it.k, o = it.oneri = it.oneri || enIyi(k);
+    var hal = h('span', { class: 'hl' + (it.secili ? ' on' : '') + (o ? '' : ' yok'), onclick: function (e) { e.stopPropagation(); if (!o || it.done) return; it.secili = !it.secili; hal.classList.toggle('on', it.secili); topluCiz(); } }, it.secili ? ic('ok', 16) : null);
+    var alt = it.done ? h('div', { class: 's2 tp' }, '✓ ' + (it.sonuc || 'kaydedildi')) : (o ? h('div', { class: 's2 mavi' }, '› ' + o.cari + (etMetni(o.etiket) ? ' · ' + etMetni(o.etiket) : '')) : h('div', { class: 's2' }, k.maas ? 'Maaş · BES sorusu' : k.provizyon ? 'Provizyon · cari seç' : 'Cari yok · sor'));
+    var ic_ = h('div', { class: 'sri' }, hal, bankaRozet(k.banka), h('div', { class: 'g' }, h('div', { class: 'n' }, ad_(k)), alt),
+      h('div', { class: 'a' }, h('div', { class: (k.toplam > 0 ? 'tp' : '') }, tutarMetni(k)), h('div', { class: 's2' }, (k.hesap || (k.kaynak === 'kart' ? 'kart' : '')) + (k.hesapSon4 ? ' ····' + k.hesapSon4 : ''))));
+    var arka = h('div', { class: 'srb' }, h('span', { class: 'ok' }, '✓ Onayla'), h('span', { class: 'at' }, 'Atla ›'));
+    var el = h('div', { class: 'sr' + (it.done ? ' bitti' : '') + (it.atla ? ' atla' : '') }, arka, ic_);
+    var x0 = null, y0 = 0, dx = 0, yatay = false;
+    ic_.addEventListener('pointerdown', function (e) { if (it.done) return; x0 = e.clientX; y0 = e.clientY; dx = 0; yatay = false; });
+    ic_.addEventListener('pointermove', function (e) {
+      if (x0 == null) return; var ddx = e.clientX - x0, ddy = e.clientY - y0;
+      if (!yatay && Math.abs(ddx) > 12 && Math.abs(ddx) > Math.abs(ddy) * 1.5) { yatay = true; try { ic_.setPointerCapture(e.pointerId); } catch (x) { /* yok */ } }
+      if (!yatay) return; dx = ddx; if (dx > 0 && !o) dx = Math.min(dx, 40); ic_.style.transform = 'translateX(' + dx + 'px)'; el.classList.toggle('sag', dx > 0);
+    });
+    function birak() {
+      if (x0 == null) return; x0 = null; ic_.style.transform = '';
+      if (!yatay) return; S.surukle = Date.now();
+      if (dx > 90 && o) cevapGonder(it, o, {}); else if (dx < -90) { it.atla = true; el.classList.add('atla'); }
     }
-    el.append(sat, kt); it.el = el; return el;
+    ic_.addEventListener('pointerup', birak); ic_.addEventListener('pointercancel', birak);
+    ic_.addEventListener('click', function () { if (S.surukle && Date.now() - S.surukle < 300) return; if (!it.done) soruDetay(i); });
+    it.el = el; return el;
+  }
+  function topluCiz() {
+    var n = (S.liste || []).filter(function (x) { return x.secili && !x.done; }).length, b = document.getElementById('toplu-onay');
+    if (b) { b.textContent = n ? '✓ ' + n + ' öneriyi onayla' : 'Seçili öneri yok'; b.disabled = !n; }
+  }
+  /** Soru ekranı: bağlam, büyük karşı taraf + tutar, "Bu ne içindi?", gerekçeli cevaplar (tek dokunuş), Başka cari, açıklama, Atla/Böl. */
+  function soruDetay(i) {
+    var it = S.liste[i]; if (!it) return listeCiz();
+    S.detay = i; var k = it.k, kap = ekranHazir(false); kap.classList.add('detay');
+    var kalan = S.liste.filter(function (x) { return !x.done && !x.atla; }).length;
+    var ust = h('div', { class: 'du' }, h('button', { class: 'geri', onclick: function () { S.detay = null; listeCiz(); } }, '‹ Liste'), h('span', { class: 'muted sm' }, kalan + ' kaldı'),
+      h('span', { class: 'du-ok' }, h('button', { class: 'ok', 'aria-label': 'Önceki', onclick: function () { sonraki(i, -1); } }, '‹'), h('button', { class: 'ok', 'aria-label': 'Sonraki', onclick: function () { sonraki(i, 1); } }, '›')));
+    var yon = k.kaynak === 'kart' ? (k.toplam > 0 ? 'iade / gelir' : 'harcama') : (k.toplam > 0 ? 'geldi' : 'gönderildi');
+    var bag = h('div', { class: 'bag' }, bankaRozet(k.banka), h('span', null, h('b', null, k.banka || ''), ' ' + (k.hesap || (k.kaynak === 'kart' ? 'kart' : '')) + (k.hesapSon4 ? ' ····' + k.hesapSon4 : '')), h('span', { class: 'sag' }, tarihKisa(k.tarih) + (k.adet > 1 ? ' · ' + k.adet + ' kalem' : '')));
+    var parca = [ust, bag, k.kullanan ? h('span', { class: 'kullanan' }, 'Kullanan: ' + k.kullanan) : null,
+      h('div', { class: 'dn disp' }, ad_(k)), h('div', { class: 'dt disp' + (k.toplam > 0 ? ' tp' : '') + (k.gizli ? ' maske' : '') }, k.gizli ? '●●●,●● ₺' : tutarMetni(k), h('span', { class: 'muted dy' }, ' ' + yon))];
+    if (k.eski) parca.push(h('div', { class: 'eski' }, h('small', null, k.eski.kural === 'cevap' ? 'ÖNCEKİ CEVABIN' : 'ESKİ KAYIT · ' + (k.eski.kural === 'birebir' ? 'AYNI GÜN, AYNI TUTAR' : k.eski.kural)), h('b', null, k.eski.cari || '?'), k.eski.acik ? ' · ' + k.eski.acik : '', k.eski.not ? h('div', { class: 'sari sm' }, k.eski.not) : null));
+    if (k.maas) {
+      parca.push(k.gizli && !S.faceId ? h('button', { class: 'baglanti', onclick: async function () { if (await gizliAc()) { S.onb = {}; sorularEkrani(S.sekme, 'yeniden'); } } }, 'İçeriği göster · şifre ile ›') : null,
+        h('div', { class: 'soru disp' }, 'Bu gelir ne?'),
+        h('div', { class: 'cvp' }, cevapSatiri('Aylık maaş', 'BES ayrıştırılır (kesinti + işveren katkısı)', null, function () { maasCevap(it, 'bes'); }),
+          cevapSatiri('Prim / diğer', 'BES yok, yalnız onay', null, function () { maasCevap(it, 'bes_yok'); }),
+          cevapSatiri('Kesinti var', 'Fark seçeceğin cariye yazılır', null, async function () { var c = await cariSec(null); if (c && c.cari) maasCevap(it, 'kesinti', c.cari); })));
+    } else {
+      var sec = secenekleriKur(k, 'soru'), cev = sec.filter(function (x) { return !x.hizli; }).slice(0, 4), hz = sec.filter(function (x) { return x.hizli; });
+      parca.push(siparisBlogu(k), h('div', { class: 'soru disp' }, 'Bu ne içindi?'));
+      parca.push(h('div', { class: 'cvp' }, cev.map(function (o, j) { return cevapSatiri(o.cari + (etMetni(o.etiket) ? ' · ' + etMetni(o.etiket) : ''), o.alt || o.grup, o.cari, function () { cevapGonder(it, { cari: o.cari, etiket: o.etiket.slice() }, {}); }, j === 0); }),
+        h('button', { class: 'baska2', onclick: async function () { var c = await cariSec({ aciklama: it.acik != null ? it.acik : k.aciklama }); if (c && c.cari) cevapGonder(it, c, { kural: c.kural, aciklama: c.aciklama }); } }, ic('ara', 22), 'Başka bir cari…')));
+      if (hz.length) parca.push(h('div', { class: 'hizli-satir' }, hz.map(function (o) { return h('span', { class: 'chip', onclick: function () { cevapGonder(it, { cari: o.cari, etiket: o.etiket.slice() }, {}); } }, o.metin); })));
+      if (!k.gizli && k.adet === 1) parca.push(h('button', { class: 'acik-sat', onclick: function () { ayrintiSayfasi(it); } }, ic('not', 20), h('span', { class: 'muted' }, 'Açıklama: '), h('span', { class: 'g' }, it.acik != null ? it.acik : k.aciklama), h('b', { class: 'mavi' }, 'Düzenle')));
+    }
+    parca.push(h('div', { class: 'df' }, h('button', { class: 'btn o', onclick: function () { it.atla = true; sonraki(i, 1); } }, 'Atla'),
+      k.bolunebilir ? h('button', { class: 'btn o', onclick: function () { bolEkrani(it); } }, 'Böl') : null,
+      !k.maas && !k.gizli ? h('button', { class: 'btn', onclick: function () { ayrintiSayfasi(it); } }, 'Ayrıntılı') : null));
+    kap.replaceChildren.apply(kap, parca.filter(Boolean));
+    S.soruAnahtar = k.anahtar;
+  }
+  function cevapSatiri(baslik, alt, cari, f, ilk) { return h('button', { class: 'cv' + (ilk ? ' ilk' : ''), onclick: f }, cari ? cariSimge(cari, 44) : h('span', { class: 'csim', style: { width: '44px', height: '44px' } }, '₺'), h('span', { class: 'g' }, h('b', null, baslik), alt ? h('span', { class: 'muted sm' }, alt) : null), ic('sag', 20)); }
+  function sonraki(i, d) {
+    var n = S.liste.length;
+    for (var j = i + d; j >= 0 && j < n; j += d) if (!S.liste[j].done && !S.liste[j].atla) return soruDetay(j);
+    S.detay = null; listeCiz();
+  }
+  /** Ayrıntı: seçili cari (değiştir), açıklama (öneriler), Etiket-1…5 (seviye önerileri), kural; Kaydet ve sonraki. */
+  function ayrintiSayfasi(it) {
+    var k = it.k, sec = it.sec || (enIyi(k) ? { cari: enIyi(k).cari, etiket: enIyi(k).etiket.slice() } : { cari: '', etiket: ['', '', '', '', ''] });
+    altSayfa(function (sy, kapat) {
+      var cariSat = h('div', { class: 'secili' }), acik = h('input', { class: 'alan', type: 'text', maxlength: '120', value: it.acik != null ? it.acik : k.aciklama, 'aria-label': 'Açıklama' }), et = [], etKutu = h('div', { class: 'etk' }), setler = h('div', { class: 'hizli-satir' });
+      var kural = h('input', { type: 'checkbox' });
+      function cariCiz() {
+        cariSat.replaceChildren(sec.cari ? cariSimge(sec.cari, 44) : h('span', { class: 'csim', style: { width: '44px', height: '44px' } }, '?'), h('div', { class: 'g' }, h('b', null, sec.cari || 'Cari seçilmedi'), h('span', { class: 'muted sm' }, ad_(k) + ' · ' + tutarMetni(k))),
+          h('button', { class: 'chip', onclick: async function () { var c = await cariSec(null); if (c && c.cari) { sec = { cari: c.cari, etiket: (c.etiket || []).slice() }; cariCiz(); etCiz(); } } }, 'Değiştir'));
+      }
+      function etCiz() {
+        var havuz = (S.ref.etiketHavuzu || {})[sec.cari] || [];
+        et = []; etKutu.replaceChildren();
+        for (var i = 0; i < 5; i++) {
+          var dl = 'dl-et-' + i, x = h('input', { class: 'alan et-alan', type: 'text', placeholder: (i + 1) + '. etiket', list: dl, value: (sec.etiket || [])[i] || '' });
+          et.push(x); etKutu.append(h('label', { class: 'et-sat' }, h('small', null, String(i + 1)), x), h('datalist', { id: dl }, (havuz[i] || []).map(function (v) { return h('option', { value: v }); })));
+          if (i >= 1 && !(sec.etiket || [])[i] && !(sec.etiket || [])[i - 1] && !(havuz[i] || []).length) break;     // gereken kadar seviye
+        }
+        var ol = (S.ref.cariOneri || {})[sec.cari] || [];
+        setler.replaceChildren.apply(setler, ol.filter(function (o) { return etMetni(o); }).map(function (o) { return h('span', { class: 'chip', onclick: function () { sec.etiket = o.slice(); etCiz(); } }, etMetni(o)); }));
+      }
+      var acikCip = h('div', { class: 'hizli-satir' }, (k.acikOneri || []).concat([k.aciklama]).filter(function (v, j, a) { return v && a.indexOf(v) === j; }).map(function (v) { return h('span', { class: 'chip', onclick: function () { acik.value = v; } }, v === k.aciklama ? 'Banka metni' : v); }));
+      cariCiz(); etCiz();
+      sy.append(cariSat, h('div', { class: 'etiket', style: { marginTop: '14px' } }, 'Açıklama'), acik, acikCip,
+        h('div', { class: 'etiket', style: { marginTop: '14px' } }, 'Etiket'), setler, etKutu,
+        h('label', { class: 'muted sm', style: { display: 'flex', gap: '10px', alignItems: 'center', minHeight: '48px' } }, kural, 'Bu satıcı hep böyle (kural)'),
+        k.kaynak === 'kart' ? h('div', { class: 'muted sm', style: { marginBottom: '8px' } }, 'Kartta banka metni başta kalır; yazdığın " — " ile eklenir.') : null,
+        h('div', { class: 'satir-btn' }, h('button', { class: 'btn o', onclick: kapat }, 'Vazgeç'), h('button', { class: 'btn', style: { flex: 1 }, onclick: function () {
+          if (!sec.cari) return toast('Önce cari seç');
+          it.acik = acik.value; kapat(); cevapGonder(it, { cari: sec.cari, etiket: et.map(function (x) { return x.value.trim(); }).concat(['', '', '', '', '']).slice(0, 5) }, { kural: kural.checked, aciklama: acik.value });
+        } }, '✓ Kaydet ve sonraki')));
+    });
   }
 
   // ---------------------------------------------------------------- cevap kuyruğu: kart hemen kapanır, yazım arkada; hata olursa kart geri açılır
   S.kuyruk = []; S.kuyrukIs = null;
   function kuyrukEkle(is) { S.kuyruk.push(is); if (!S.kuyrukIs) S.kuyrukIs = (async function () { while (S.kuyruk.length) { var j = S.kuyruk.shift(); try { await j(); } catch (e) { /* iş kendi hatasını yönetir */ } } S.kuyrukIs = null; })(); }
   function kuyrukBekle() { return S.kuyrukIs || Promise.resolve(); }
-  function listeDoldur() {
-    if (!S.liste || S.yenileniyor) return;
-    var kalan = S.liste.filter(function (x) { return !x.done; }).length;
-    if (kalan > 0 || S.yenileniyor) return;
-    var ip = document.getElementById('soru-ipucu');                       // liste bitti: kendiliğinden yenilenmez, düğme çıkar
-    if (ip) ip.replaceChildren(h('button', { class: 'chip', style: { margin: 0 }, onclick: async function () { await kuyrukBekle(); sorularEkrani(S.sekme, 'yeniden'); } }, 'Liste bitti · Yenile'));
-  }
-  async function cevapla(it) {
-    var k = it.k, sec = it.sec, ac = it.acik ? it.acik.value.trim() : undefined, idx = S.liste.indexOf(it);
-    it.done = true; it.el.classList.add('bitti'); var ik = it.el.querySelector('.sat .ic'); if (ik) ik.replaceWith(ic('ok', 18));
-    toast('Kaydediliyor: ' + k.aciklama.slice(0, 24) + ' → ' + sec.cari);
+  /** Cevap gönder: satır hemen işaretlenir, sonraki soruya geçilir; yazım arkada (sırayla). Hata olursa satır geri açılır. */
+  function cevapGonder(it, sec, ek) {
+    var k = it.k, ac = ek && ek.aciklama != null ? String(ek.aciklama).trim() : (it.acik != null ? String(it.acik).trim() : undefined), idx = S.liste.indexOf(it);
+    it.done = true; it.secili = false; it.sonuc = sec.cari + (etMetni(sec.etiket) ? ' · ' + etMetni(sec.etiket) : '');
     S.sayilar.soru = Math.max(0, (S.sayilar.soru || 0) - 1); rozetleriCiz();
-    setTimeout(function () { if (tk) tk.git(tk.indeks() + 1); }, 150);
+    if (S.detay != null) sonraki(idx, 1); else if (it.el) it.el.replaceWith(satirOge(it, idx));
+    topluCiz();
     kuyrukEkle(async function () {
-      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!sec.kural, mod: 'soru', aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip, siparisNo: k.siparis && k.siparis.kesin ? k.siparis.no : undefined }); }
+      try { await api('cevapla', { anahtar: k.anahtar, cari: sec.cari, etiket: sec.etiket, kural: !!(ek && ek.kural), mod: 'soru', aciklama: ac && ac !== k.aciklama ? ac : undefined, ip: k.ip, siparisNo: k.siparis && k.siparis.kesin ? k.siparis.no : undefined }); }
       catch (e) {
-        if (/Soru bulunamad/.test(e.message)) { toast('Bu soru zaten cevaplanmış (liste yenilenince kaybolur)'); return; }
-        it.done = false; it.el.classList.remove('bitti'); var ik2 = it.el.querySelector('.sat .ic'); if (ik2) ik2.replaceWith(ic('nokta', 18));
-        toast('Kaydedilemedi: ' + hataMetni(e)); if (tk && idx != null) tk.git(idx); return;
+        if (/Soru bulunamad/.test(e.message)) { toast('Bu soru zaten cevaplanmış'); return; }
+        it.done = false; it.sonuc = ''; if (it.el && S.detay == null) it.el.replaceWith(satirOge(it, idx));
+        toast('Kaydedilemedi: ' + hataMetni(e)); return;
       }
       S.onb = {};
-      toast(k.aciklama.slice(0, 28) + ' → ' + sec.cari, 'Geri al', async function () { try { await kuyrukBekle(); await api('geriAl'); S.onb = {}; sorularEkrani(S.sekme, 'taze'); } catch (e) { toast(hataMetni(e)); } });
-      listeDoldur();
+      toast(ad_(k).slice(0, 24) + ' → ' + sec.cari, 'Geri al', async function () { try { await kuyrukBekle(); await api('geriAl'); S.onb = {}; sorularEkrani(S.sekme, 'taze'); } catch (e) { toast(hataMetni(e)); } });
     });
   }
   /** Bölme: satır tutarı birden çok cariye ayrılır; parçaların toplamı tutara eşit olmadan kaydedilmez. Tutarlar mutlak girilir, işaret satırdan. */
@@ -392,7 +383,7 @@
         catch (e) { kaydet.disabled = false; kaydet.textContent = 'Böl ve kaydet'; return toast(hataMetni(e)); }
         kapat(); S.onb = {};
         toast(r.adet + ' parçaya bölündü', r.geriAl ? 'Geri al' : null, async function () { try { await api('geriAl'); S.onb = {}; if (it) sorularEkrani(S.sekme, 'taze'); else if (sonra) sonra(); } catch (e) { toast(hataMetni(e)); } });
-        if (it) { it.done = true; it.el.classList.add('bitti'); S.sayilar.soru = Math.max(0, (S.sayilar.soru || 0) - 1); rozetleriCiz(); if (tk) tk.git(tk.indeks() + 1); listeDoldur(); }
+        if (it) { it.done = true; it.sonuc = r.adet + ' parça'; S.sayilar.soru = Math.max(0, (S.sayilar.soru || 0) - 1); rozetleriCiz(); if (S.detay != null) sonraki(S.liste.indexOf(it), 1); else listeCiz(); }
         else if (sonra) sonra();
       };
       sy.append(h('div', { class: 'b18' }, 'Böl: ' + k.aciklama), h('div', { class: 'muted sm', style: { marginBottom: '8px' } }, tutarMetni(k) + ' · ' + tarihKisa(k.tarih)), liste,
@@ -402,7 +393,8 @@
   }
   async function maasCevap(it, mod, cari) {
     try { await api('maasCevap', { anahtar: it.k.anahtar, mod: mod, cari: cari || undefined }); } catch (e) { return toast(hataMetni(e)); }
-    toast(mod === 'bes' ? 'Maaş + BES satırları deftere yazıldı' : mod === 'kesinti' ? 'Maaş + BES + kesinti (' + cari + ') deftere yazıldı' : 'Onaylandı (BES yok)'); S.onb = {}; sorularEkrani(S.sekme, 'yeniden');
+    toast(mod === 'bes' ? 'Maaş + BES satırları deftere yazıldı' : mod === 'kesinti' ? 'Maaş + BES + kesinti (' + cari + ') deftere yazıldı' : 'Onaylandı (BES yok)');
+    it.done = true; it.sonuc = 'maaş'; S.onb = {}; sonraki(S.liste.indexOf(it), 1);
   }
   /** 40'lık blok gezinme: ‹ Önceki · 1–40 / 123 · Sonraki ›. Blok boşaldıysa başa döner. */
   function sayfaCipleri(r, sek, yenile) {
@@ -415,48 +407,53 @@
 
   // ---------------------------------------------------------------- Sorular ekranı (Kart | Hesap)
   var ISTEMCI_LIMIT = 40;                                                                  // 2.19: 40'lık bloklar; ‹ Önceki / Sonraki › ile gezilir
+  var FILTRE_ = { cevapUyan: 1, cevapUymayan: 1 };
   async function soruListesiAl(sekme, taze) {
-    var mod = sekme === 'kontrol' ? 'kontrol' : 'soru', r = await api('sorular', { mod: mod, kaynak: mod === 'kontrol' ? '' : sekme, limit: ISTEMCI_LIMIT, bas: S.bas[sekme] || 0, taze: taze ? true : undefined });
-    S.onb[sekme] = { r: r, t: Date.now() }; S.ref = { cariler: r.cariler, cariOneri: r.cariOneri, bankalar: r.bankalar }; S.kisayollar = r.kisayollar || []; S.bugunIso = r.bugun; S.sayilar = r.sayilar || S.sayilar; rozetleriCiz();
+    var mod = sekme === 'kontrol' || FILTRE_[sekme] ? 'kontrol' : 'soru', r = await api('sorular', { mod: mod, kaynak: mod === 'kontrol' ? '' : sekme, filtre: FILTRE_[sekme] ? sekme : undefined, limit: ISTEMCI_LIMIT, bas: S.bas[sekme] || 0, taze: taze ? true : undefined });
+    S.onb[sekme] = { r: r, t: Date.now() }; S.ref = { cariler: r.cariler, cariOneri: r.cariOneri, bankalar: r.bankalar, etiketHavuzu: r.etiketHavuzu || {} }; S.kisayollar = r.kisayollar || []; S.bugunIso = r.bugun; S.sayilar = r.sayilar || S.sayilar; rozetleriCiz();
     return r;
   }
-  function onYukle(sek) {
-    setTimeout(async function () {
-      var diger = ['kart', 'hesap', 'kontrol'].filter(function (x) { return x !== sek && !S.onb[x]; });
-      for (var i = 0; i < diger.length; i++) { try { await soruListesiAl(diger[i], false); } catch (e) { /* sessiz */ } }
-    }, 400);
-  }
+
   async function sorularEkrani(sekme, mod2) {
-    var ilk = !sekme && !S.sekme; S.sekme = sekme === 'hesap' ? 'hesap' : 'kart'; if (sekme === 'kart' || sekme === 'hesap') S.sekme = sekme;
-    var sek = S.sekme, kap = ekranHazir(true), r, onb = S.onb[sek];
-    S.liste = null; S.dokundu = false;
-    if (onb && mod2 !== 'taze' && mod2 !== 'yeniden') { r = onb.r; if (Date.now() - onb.t > 90000) sessizYenile(sek); }
-    else {
-      kap.replaceChildren(yukleniyor());
-      try { r = await soruListesiAl(sek, mod2 === 'taze'); } catch (e) { if (S.ekran === 'soru' && S.sekme === sek) { kap.className = 'ekran'; hataGoster(e); } return; }
-    }
+    var ilk = !sekme && !S.sekme; if (sekme === 'kart' || sekme === 'hesap') S.sekme = sekme; else if (!S.sekme) S.sekme = 'hesap';
+    var sek = S.sekme, kap = ekranHazir(false), r, onb = S.onb[sek];
+    S.detay = null;
+    if (onb && mod2 !== 'taze' && mod2 !== 'yeniden') r = onb.r;
+    else { kap.replaceChildren(yukleniyor()); try { r = await soruListesiAl(sek, mod2 === 'taze'); } catch (e) { if (S.ekran === 'soru' && S.sekme === sek) hataGoster(e); return; } }
     if (S.ekran !== 'soru' || S.sekme !== sek) return;
     if (!r.kartlar.length && (r.bas || 0) > 0) { S.bas[sek] = 0; return sorularEkrani(sek, 'taze'); }
-    var sayi = r.sayilar || {}, sc = sayfaCipleri(r, sek, function () { sorularEkrani(sek, 'taze'); });
-    if (ilk && sek === 'kart' && !sayi.kart && sayi.hesap) return sorularEkrani('hesap');
-    var ust = h('div', null, h('div', { class: 'ust' }, h('h1', null, 'Sorular'), h('span', { class: 'muted sm', id: 'soru-sayi' }, (sayi.kart || 0) + ' kart · ' + (sayi.hesap || 0) + ' hesap'), h('button', { class: 'chip', style: { margin: 0 }, onclick: function () { sorularEkrani(sek, 'taze'); } }, 'Yenile')),
-      h('div', { class: 'seg' }, h('button', { class: sek === 'kart' ? 'on' : '', onclick: function () { sorularEkrani('kart'); } }, 'Kart ', h('b', null, sayi.kart || 0)), h('button', { class: sek === 'hesap' ? 'on' : '', onclick: function () { sorularEkrani('hesap'); } }, 'Hesap ', h('b', null, sayi.hesap || 0))));
-    if (sc) ust.appendChild(sc);
-    if (!r.kartlar.length) { kap.className = 'ekran'; kap.replaceChildren(ust, h('div', { class: 'bos' }, 'Bu listede soru yok', h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn o', onclick: function () { sorularEkrani(sek, 'taze'); } }, 'Yenile')))); tk = null; onYukle(sek); return; }
-    S.liste = r.kartlar.map(function (k) { return { k: k, done: false }; });
-    var kapT = h('div', { class: 'tekerlek', tabindex: '0', 'aria-label': 'Sorular' });
-    S.liste.forEach(function (it) { soruOge(it); });
-    kap.replaceChildren(ust, kapT, h('div', { class: 'ipucu', id: 'soru-ipucu' }, '↕ kaydır · yenilemek için üstteki Yenile'));
-    tk = Tekerlek(kapT, S.liste);
-    var eski = S.soruAnahtar ? S.liste.findIndex(function (x) { return x.k.anahtar === S.soruAnahtar; }) : -1;    // kilit açılınca ya da ekran değişip dönünce aynı kart
-    if (eski > 0) tk.git(eski, 0);
-    onYukle(sek);
+    var sayi = r.sayilar || {};
+    if (ilk && sek === 'hesap' && !sayi.hesap && sayi.kart) return sorularEkrani('kart');
+    S.liste = r.kartlar.map(function (k) { var it = { k: k, done: false }; it.oneri = enIyi(k); it.secili = !!it.oneri && !k.provizyon; return it; });
+    S.listeR = r; listeCiz();
   }
-  async function sessizYenile(sek) {
-    try { var onceki = (S.onb[sek] && S.onb[sek].r.kartlar.map(function (k) { return k.anahtar; }).join(',')) || '', r = await soruListesiAl(sek, false);
-      if (S.ekran === 'soru' && S.sekme === sek && r.kartlar.map(function (k) { return k.anahtar; }).join(',') !== onceki) { var ip = document.getElementById('soru-ipucu'); if (ip) ip.replaceChildren(h('button', { class: 'chip', style: { margin: 0 }, onclick: function () { sorularEkrani(sek, 'yeniden'); } }, 'Yeni sorular var · Yenile')); } } catch (e) { /* sessiz: ekran kendiliğinden yeniden çizilmez */ }
+  function listeCiz() {
+    var kap = ekranHazir(false), r = S.listeR, sek = S.sekme, sayi = (r && r.sayilar) || {};
+    if (!r) return sorularEkrani(sek);
+    var ust = h('div', { class: 'ust' }, h('h1', { class: 'disp' }, 'Sorular'), h('button', { class: 'chip', style: { margin: 0 }, onclick: function () { sorularEkrani(sek, 'taze'); } }, 'Yenile'));
+    var sg = h('div', { class: 'fl' }, h('button', { class: 'chip' + (sek === 'hesap' ? ' s' : ''), onclick: function () { sorularEkrani('hesap'); } }, 'Hesap ' + (sayi.hesap || 0)), h('button', { class: 'chip' + (sek === 'kart' ? ' s' : ''), onclick: function () { sorularEkrani('kart'); } }, 'Kart ' + (sayi.kart || 0)),
+      sayfaCipleri(r, sek, function () { sorularEkrani(sek, 'taze'); }));
+    if (!S.liste.length) { kap.replaceChildren(ust, sg, h('div', { class: 'bos' }, 'Bu listede soru yok')); return; }
+    var liste = h('div', { class: 'sl' }), son = '';
+    S.liste.forEach(function (it, i) { if (it.k.tarih !== son) { son = it.k.tarih; liste.appendChild(h('div', { class: 'etiket gun' }, gun_(son))); } liste.appendChild(satirOge(it, i)); });
+    var bar = h('div', { class: 'fab' }, h('button', { class: 'btn o', style: { flex: '0 0 auto' }, onclick: function () { var hep = S.liste.some(function (x) { return x.oneri && !x.done && !x.secili; }); S.liste.forEach(function (x) { if (x.oneri && !x.done) x.secili = hep; }); listeCiz(); } }, 'Seç'),
+      h('button', { class: 'btn', id: 'toplu-onay', style: { flex: 1 }, onclick: topluOnay }, ''));
+    kap.replaceChildren(ust, sg, h('div', { class: 'muted sm ipucu2' }, 'Sağa kaydır: önerilenle onayla · sola: atla · dokun: sor'), liste, bar);
+    topluCiz();
   }
-  /** Aşağı çekince yenile (yalnız en üstteyken, 70 px). */
+  async function topluOnay(ev) {
+    var b = ev.currentTarget, sec = S.liste.filter(function (x) { return x.secili && !x.done && x.oneri; }); if (!sec.length) return;
+    b.disabled = true; b.textContent = 'Onaylanıyor… ' + sec.length;
+    await kuyrukBekle();
+    try {
+      var r = await api('cevaplaToplu', { liste: sec.map(function (x) { return { anahtar: x.k.anahtar, cari: x.oneri.cari, etiket: x.oneri.etiket, ip: x.k.ip }; }) });
+      var hata = {}; (r.hatalar || []).forEach(function (x) { hata[x.anahtar] = x.hata; });
+      sec.forEach(function (x) { if (!hata[x.k.anahtar]) { x.done = true; x.secili = false; x.sonuc = x.oneri.cari; } });
+      S.sayilar.soru = Math.max(0, (S.sayilar.soru || 0) - (r.tamam || 0)); rozetleriCiz(); S.onb = {};
+      toast(r.tamam + ' soru deftere yazıldı' + ((r.hatalar || []).length ? ' · ' + r.hatalar.length + ' atlandı' : ''));
+    } catch (e) { toast(hataMetni(e)); }
+    listeCiz();
+  }
 
   // ---------------------------------------------------------------- Öneriler ekranı (sistemin yazdıkları; toplu onay)
   function yan(u) { return h('div', { class: 'yan', style: { borderTopColor: bankaRengi(u.banka) } }, h('div', { class: 'b' }, u.banka || ''), h('div', { class: 'h' }, u.hesap || ''), h('div', { class: 't ' + (u.tutar < 0 ? 'mp' : 'tp') }, para(u.tutar) + ' ₺'), h('div', { class: 'h' }, tarihKisa(u.tarih) + ' · ' + String(u.aciklama || '').slice(0, 22))); }
@@ -476,12 +473,14 @@
     function toplamCiz() { var t = document.getElementById('oneri-toplam'); if (t) t.textContent = secili.size + ' öneri seçili'; var b = document.getElementById('oneri-onayla'); if (b) { b.textContent = 'Seçili ' + secili.size + '’i onayla ✓'; b.disabled = !secili.size; } }
   }
   async function onerilerEkrani(mod2) {
-    var kap = ekranHazir(false), r, onb = S.onb.kontrol;
+    var sek = S.oneriSekme || 'kontrol', kap = ekranHazir(false), r, onb = S.onb[sek];
     if (onb && mod2 !== 'taze' && mod2 !== 'yeniden') r = onb.r;
-    else { kap.replaceChildren(yukleniyor()); try { r = await soruListesiAl('kontrol', mod2 === 'taze'); } catch (e) { return hataGoster(e); } }
+    else { kap.replaceChildren(yukleniyor()); try { r = await soruListesiAl(sek, mod2 === 'taze'); } catch (e) { return hataGoster(e); } }
     if (S.ekran !== 'oneri') return;
-    if (!r.kartlar.length && (r.bas || 0) > 0) { S.bas.kontrol = 0; return onerilerEkrani('taze'); }
-    var bilgi = h('div', { class: 'muted sm', style: { margin: '-4px 0 8px' } }, (r.toplam || r.kartlar.length) + ' öneri' + (r.kartlar.length ? ' · bu sayfa ' + para(r.kartlar.reduce(function (a, k) { return a + (Number(k.toplam) || 0); }, 0)) + ' ₺' : ''), sayfaCipleri(r, 'kontrol', function () { onerilerEkrani('taze'); }));
+    if (!r.kartlar.length && (r.bas || 0) > 0) { S.bas[sek] = 0; return onerilerEkrani('taze'); }
+    var bilgi = h('div', { class: 'muted sm', style: { margin: '-4px 0 8px' } }, (r.toplam || r.kartlar.length) + ' öneri' + (r.kartlar.length ? ' · bu sayfa ' + para(r.kartlar.reduce(function (a, k) { return a + (Number(k.toplam) || 0); }, 0)) + ' ₺' : ''), sayfaCipleri(r, sek, function () { onerilerEkrani('taze'); }));
+    var cs = r.cevapSay || {}, sekmeler = (cs.cevap || sek !== 'kontrol') ? h('div', { class: 'fl' }, [['kontrol', 'Tümü'], ['cevapUyan', 'Eski cevap · uyan ' + (cs.cevapUyan || 0)], ['cevapUymayan', 'Uymayan ' + (cs.cevapUymayan || 0)]].map(function (x) { return h('button', { class: 'chip' + (sek === x[0] ? ' s' : ''), onclick: function () { S.oneriSekme = x[0]; onerilerEkrani(); } }, x[1]); })) : null;
+    if (sek === 'cevapUymayan') return uymayanCiz(kap, r, sekmeler, bilgi);
     var secili = new Set(r.kartlar);                                                    // kart başına seçim: birebir aynı iki kart (aynı anahtar) ikisi de gider
     var sistem = r.kartlar.filter(function (k) { return k.sistem; }), diger = r.kartlar.filter(function (k) { return !k.sistem; });
     function degistir(k) {
@@ -494,7 +493,7 @@
       });
     }
     var ust = h('div', { class: 'ust' }, h('h1', null, 'Öneriler'), h('button', { class: 'chip', style: { margin: 0 }, onclick: function () { onerilerEkrani('taze'); } }, 'Yenile'), h('button', { class: 'chip', style: { margin: 0 }, onclick: function () { S.islemSekme = 'tetik'; git('islem'); } }, 'Claude öner ›'));
-    if (!r.kartlar.length) { kap.replaceChildren(ust, bilgi, h('div', { class: 'bos' }, 'Onay bekleyen öneri yok', h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn o', onclick: function () { onerilerEkrani('taze'); } }, 'Yenile')))); return; }
+    if (!r.kartlar.length) { kap.replaceChildren(ust, sekmeler || '', bilgi, h('div', { class: 'bos' }, 'Onay bekleyen öneri yok', h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn o', onclick: function () { onerilerEkrani('taze'); } }, 'Yenile')))); return; }
     var liste = h('div', { class: 'kart', style: { padding: '4px 14px' } });
     if (sistem.length) { liste.appendChild(h('div', { class: 'etiket', style: { margin: '10px 0 2px' } }, 'Sistem grupları · alan değişmez')); sistem.forEach(function (k) { liste.appendChild(oneriSatiri(k, secili, degistir)); }); }
     if (diger.length) { liste.appendChild(h('div', { class: 'etiket', style: { margin: '10px 0 2px' } }, 'Otomatik sınıflama')); diger.forEach(function (k) { liste.appendChild(oneriSatiri(k, secili, degistir)); }); }
@@ -512,9 +511,30 @@
         else toast(satir + ' satır deftere taşındı' + (atlanan ? ' · ' + atlanan + ' atlandı' : '') + (son && son.geriAl ? ' · geri al yalnız son paketi alır' : ''), son && son.geriAl ? 'Son paketi geri al' : null, async function () { try { await api('geriAl'); S.onb = {}; onerilerEkrani('taze'); } catch (e) { toast(hataMetni(e)); } });
         onerilerEkrani('taze');
       } }, 'Seçili ' + secili.size + '’i onayla ✓'));
-    kap.replaceChildren(ust, bilgi, h('div', { class: 'kart satir', style: { padding: '12px 16px' } }, h('span', { class: 'sm', id: 'oneri-toplam' }, secili.size + ' öneri seçili'), h('span', { class: 'muted sm' }, 'kaldırdığın kalır')), liste, alt);
+    kap.replaceChildren(ust, sekmeler || '', bilgi, h('div', { class: 'kart satir', style: { padding: '12px 16px' } }, h('span', { class: 'sm', id: 'oneri-toplam' }, secili.size + ' öneri seçili'), h('span', { class: 'muted sm' }, 'kaldırdığın kalır')), liste, alt);
   }
 
+  /** 2.20 geçici (2.21'de kalkar): eski cevap ↔ yeni motor önerisi farklı olanlar. Satır başına "Eskisi" / "Yenisi"; toplu "Hepsinde eski" / "Hepsinde yeni". */
+  function uymayanCiz(kap, r, sekmeler, bilgi) {
+    var ust = h('div', { class: 'ust' }, h('h1', null, 'Öneriler'), h('button', { class: 'chip', style: { margin: 0 }, onclick: function () { onerilerEkrani('taze'); } }, 'Yenile'));
+    if (!r.kartlar.length) { kap.replaceChildren(ust, sekmeler || '', bilgi, h('div', { class: 'bos' }, 'Uymayan eski cevap yok')); return; }
+    async function uygula(kartlar, yeni) {
+      try {
+        var t = 0;
+        if (yeni) { var x = await api('cevaplaToplu', { liste: kartlar.map(function (k) { return { anahtar: k.anahtar, cari: k.eski.yeni, etiket: k.eski.yeniEtiket || [], ip: k.ip, mod: 'kontrol' }; }) }); t = x.tamam; }
+        else { var y = await api('onaylaToplu', { anahtarlar: kartlar.map(function (k) { return k.anahtar; }), mod: 'kontrol' }); t = y.adet; }
+        toast(t + ' satır deftere · ' + (yeni ? 'yeni öneri' : 'eski cevap')); S.onb = {}; onerilerEkrani('taze');
+      } catch (e) { toast(hataMetni(e)); }
+    }
+    var liste = h('div', { class: 'kart', style: { padding: '4px 14px' } }, r.kartlar.map(function (k) {
+      return h('div', { class: 'uy' }, h('div', { class: 'satir' }, h('b', null, k.alici || k.aciklama), h('span', { class: 'tu ' + (k.toplam < 0 ? 'mp' : 'tp') }, tutarMetni(k))),
+        h('div', { class: 'muted sm' }, tarihKisa(k.tarih) + ' · ' + (k.banka || '') + ' ' + (k.hesap || '')),
+        h('div', { class: 'uy-s' }, h('button', { class: 'uyb', onclick: function () { uygula([k], false); } }, h('small', null, 'ESKİ CEVAP'), h('b', null, k.eski.cari + (etMetni(k.oneriler && k.oneriler[0] && k.oneriler[0].etiket) ? ' · ' + etMetni(k.oneriler[0].etiket) : ''))),
+          h('button', { class: 'uyb y', onclick: function () { uygula([k], true); } }, h('small', null, 'YENİ KURAL'), h('b', null, k.eski.yeni + (etMetni(k.eski.yeniEtiket) ? ' · ' + etMetni(k.eski.yeniEtiket) : '')))));
+    }));
+    var alt = h('div', { class: 'yapisik' }, h('button', { class: 'btn o', style: { flex: 1 }, onclick: function () { uygula(r.kartlar, false); } }, 'Hepsinde eski'), h('button', { class: 'btn', style: { flex: 1 }, onclick: function () { uygula(r.kartlar, true); } }, 'Hepsinde yeni'));
+    kap.replaceChildren(ust, sekmeler || '', bilgi, liste, alt);
+  }
   // ---------------------------------------------------------------- İşlemler ekranı (durum, elle tetikleme, geri al, nakit ekle, acil fren)
   function tetikle(ad, eylem) {
     return async function (ev) {
