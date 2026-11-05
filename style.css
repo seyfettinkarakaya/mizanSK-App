@@ -81,3 +81,21 @@ label.et{display:block;font-size:14px;font-weight:700;color:var(--muted);margin-
 .sabit-sec .baska{flex:1;border-top:0;margin-top:0;min-height:48px}.sabit-sec .baska.bol{flex:0 0 auto;padding:0 16px;border:1px solid var(--line);border-radius:12px}
 .hizli-satir{display:flex;gap:8px;overflow-x:auto;white-space:nowrap;padding-bottom:4px;-webkit-overflow-scrolling:touch}.hizli-satir .chip{flex:none}
 .kt .aday{min-height:48px;padding:4px 12px;margin-bottom:4px}
+
+/* 2.19: kart tasarımı — banka şeridi/rozet, hesap, akış, bankadaki açıklama, eski kayıt, deftere yazılacak açıklama; nakil çifti; 40'lık blok çipleri */
+.serit{height:5px;border-radius:3px;margin:-4px 0 8px}
+.ust2{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px}
+.banka{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:16px;min-width:0;flex-wrap:wrap}.banka i{width:12px;height:12px;border-radius:3px;flex:none;display:inline-block}
+.banka .hesap{color:var(--muted);font-weight:500;font-size:15px}
+.tarih{color:var(--muted);font-size:15px;white-space:nowrap}
+.bdot{width:10px;height:10px;border-radius:3px;flex:none;display:inline-block}
+.kullanan{display:inline-block;margin:6px 0 0;background:var(--panel2);border-radius:999px;padding:4px 10px;font-size:15px}
+.akis{margin:8px 0 0;font-size:16px;color:var(--muted);word-break:break-word}.akis b{color:var(--text)}
+.ham{margin:8px 0 0;background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:16px;line-height:1.3;word-break:break-word}.ham small{display:block;color:var(--muted);font-size:13px;letter-spacing:.04em;margin-bottom:2px}
+.alan2{margin:6px 0 2px;border:1px solid var(--line);border-radius:12px;padding:6px 12px 2px}.alan2 small{display:block;color:var(--muted);font-size:14px}.alan2 .alan{border:0;background:none;padding:0;margin:0;min-height:40px;border-radius:0}
+.eski{margin:8px 0 0;border:1px dashed var(--acc);border-radius:12px;padding:8px 12px;font-size:15px}.eski small{display:block;color:var(--acc);font-size:13px;font-weight:700;letter-spacing:.04em;margin-bottom:2px}
+.alt4{gap:8px}.alt4 .btn{min-height:52px;padding:0 12px;white-space:nowrap}.alt4 .btn.o{flex:0 0 auto}.alt4 .btn.b2.s{border-color:var(--acc);color:var(--acc)}.alt4 .btn.ana{flex:1;min-width:0}
+.iki{display:grid;grid-template-columns:1fr 24px 1fr;gap:6px;align-items:stretch;margin:6px 0 2px}
+.yan{background:var(--panel2);border-radius:12px;padding:8px;min-width:0;overflow:hidden;border-top:4px solid var(--muted2)}.yan .b{font-weight:700;font-size:15px}.yan .h{color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.yan .t{font-size:16px;font-weight:800;margin:4px 0 0;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ok{display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--muted)}
+.sayfa-cip{display:flex;gap:8px;align-items:center;justify-content:center;margin:0 0 8px;width:100%}.sayfa-cip .chip{margin:0}.sayfa-cip .chip[disabled]{opacity:.4}
