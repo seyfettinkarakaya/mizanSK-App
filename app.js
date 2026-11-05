@@ -4,7 +4,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır; innerHTML YALNIZ sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.03';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.04';
   var S = { cfg: null, pin: null, g: null, gTimer: null, ekran: 'soru', sekme: null, bas: {}, kisayollar: [], ref: null, onb: {}, gec: {}, dokundu: false, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), faceId: null, kilitli: false, sayilar: {} };
   var app = document.getElementById('app');
 
@@ -407,7 +407,7 @@
 
   // ---------------------------------------------------------------- Sorular ekranı (Kart | Hesap)
   var ISTEMCI_LIMIT = 40;                                                                  // 2.19: 40'lık bloklar; ‹ Önceki / Sonraki › ile gezilir
-  var FILTRE_ = { cevapUyan: 1, cevapUymayan: 1 };
+  var FILTRE_ = { cevapUyan: 1, cevapUymayan: 1, eskiKayit: 1 };
   async function soruListesiAl(sekme, taze) {
     var mod = sekme === 'kontrol' || FILTRE_[sekme] ? 'kontrol' : 'soru', r = await api('sorular', { mod: mod, kaynak: mod === 'kontrol' ? '' : sekme, filtre: FILTRE_[sekme] ? sekme : undefined, limit: ISTEMCI_LIMIT, bas: S.bas[sekme] || 0, taze: taze ? true : undefined });
     S.onb[sekme] = { r: r, t: Date.now() }; S.ref = { cariler: r.cariler, cariOneri: r.cariOneri, bankalar: r.bankalar, etiketHavuzu: r.etiketHavuzu || {} }; S.kisayollar = r.kisayollar || []; S.bugunIso = r.bugun; S.sayilar = r.sayilar || S.sayilar; rozetleriCiz();
@@ -479,8 +479,9 @@
     if (S.ekran !== 'oneri') return;
     if (!r.kartlar.length && (r.bas || 0) > 0) { S.bas[sek] = 0; return onerilerEkrani('taze'); }
     var bilgi = h('div', { class: 'muted sm', style: { margin: '-4px 0 8px' } }, (r.toplam || r.kartlar.length) + ' öneri' + (r.kartlar.length ? ' · bu sayfa ' + para(r.kartlar.reduce(function (a, k) { return a + (Number(k.toplam) || 0); }, 0)) + ' ₺' : ''), sayfaCipleri(r, sek, function () { onerilerEkrani('taze'); }));
-    var cs = r.cevapSay || {}, sekmeler = (cs.cevap || sek !== 'kontrol') ? h('div', { class: 'fl' }, [['kontrol', 'Tümü'], ['cevapUyan', 'Eski cevap · uyan ' + (cs.cevapUyan || 0)], ['cevapUymayan', 'Uymayan ' + (cs.cevapUymayan || 0)]].map(function (x) { return h('button', { class: 'chip' + (sek === x[0] ? ' s' : ''), onclick: function () { S.oneriSekme = x[0]; onerilerEkrani(); } }, x[1]); })) : null;
+    var cs = r.cevapSay || {}, sekmeler = (cs.cevap || cs.eskiKayit || sek !== 'kontrol') ? h('div', { class: 'fl' }, [['kontrol', 'Tümü'], ['cevapUyan', 'Eski cevap · uyan ' + (cs.cevapUyan || 0)], ['cevapUymayan', 'Uymayan ' + (cs.cevapUymayan || 0)], ['eskiKayit', 'Eski kayıtlar ' + (cs.eskiKayit || 0)]].map(function (x) { return h('button', { class: 'chip' + (sek === x[0] ? ' s' : ''), onclick: function () { S.oneriSekme = x[0]; onerilerEkrani(); } }, x[1]); })) : null;
     if (sek === 'cevapUymayan') return uymayanCiz(kap, r, sekmeler, bilgi);
+    if (sek === 'eskiKayit') return eskiKayitCiz(kap, r, sekmeler, bilgi);
     var secili = new Set(r.kartlar);                                                    // kart başına seçim: birebir aynı iki kart (aynı anahtar) ikisi de gider
     var sistem = r.kartlar.filter(function (k) { return k.sistem; }), diger = r.kartlar.filter(function (k) { return !k.sistem; });
     function degistir(k) {
@@ -514,6 +515,30 @@
     kap.replaceChildren(ust, sekmeler || '', bilgi, h('div', { class: 'kart satir', style: { padding: '12px 16px' } }, h('span', { class: 'sm', id: 'oneri-toplam' }, secili.size + ' öneri seçili'), h('span', { class: 'muted sm' }, 'kaldırdığın kalır')), liste, alt);
   }
 
+  /** 2.21 geçici: eşleşmeyen eski kayıtlar (eski sistemde yazılmış, dökümde karşılığı yok). Gruplu liste; seçilenler "Deftere al" ya da "Alma". */
+  function eskiKayitCiz(kap, r, sekmeler, bilgi) {
+    var ust = h('div', { class: 'ust' }, h('h1', null, 'Öneriler'), h('button', { class: 'chip', style: { margin: 0 }, onclick: function () { onerilerEkrani('taze'); } }, 'Yenile'));
+    if (!r.kartlar.length) { kap.replaceChildren(ust, sekmeler || '', bilgi, h('div', { class: 'bos' }, 'Bekleyen eski kayıt yok')); return; }
+    var secili = new Set(), liste = h('div'), gr = {}, sira = [];
+    r.kartlar.forEach(function (k) { var g = k.kategori || 'Diğer'; if (!gr[g]) { gr[g] = []; sira.push(g); } gr[g].push(k); });
+    function say() { var n = secili.size; document.getElementById('ek-al').textContent = 'Deftere al (' + n + ')'; document.getElementById('ek-alma').textContent = 'Alma (' + n + ')'; document.getElementById('ek-al').disabled = document.getElementById('ek-alma').disabled = !n; }
+    sira.forEach(function (g) {
+      var kutular = [];
+      var bas = h('div', { class: 'satir', style: { margin: '14px 0 4px' } }, h('span', { class: 'etiket' }, g + ' · ' + gr[g].length), h('button', { class: 'baglanti', onclick: function () { var hep = gr[g].some(function (k) { return !secili.has(k); }); gr[g].forEach(function (k, j) { if (hep) secili.add(k); else secili.delete(k); kutular[j].checked = hep; }); say(); } }, 'hepsini seç'));
+      var kart = h('div', { class: 'kart', style: { padding: '2px 14px' } }, gr[g].map(function (k, j) {
+        var c = h('input', { type: 'checkbox', onchange: function () { if (c.checked) secili.add(k); else secili.delete(k); say(); } }); kutular.push(c);
+        return h('label', { class: 'oneri' }, c, h('span', { class: 'g' }, h('span', { class: 'satir' }, h('b', null, k.aciklama), h('span', { class: 'tu ' + (k.toplam < 0 ? 'mp' : 'tp') }, tutarMetni(k))),
+          h('span', { class: 'satir sm' }, h('span', { class: 'muted' }, tarihKisa(k.tarih) + ' · ' + (k.cari || 'cari yok')), h('button', { class: 'baglanti', onclick: async function (e) { e.preventDefault(); var cc = await cariSec(null); if (!cc) return; try { await api('cevapla', { anahtar: k.anahtar, cari: cc.cari, etiket: cc.etiket, kural: false, mod: 'kontrol', ip: k.ip }); toast('Deftere alındı → ' + cc.cari); S.onb = {}; onerilerEkrani('taze'); } catch (x) { toast(hataMetni(x)); } } }, 'başka cariyle al'))));
+      }));
+      liste.append(bas, kart);
+    });
+    async function uygula(al) {
+      var a = Array.from(secili).map(function (k) { return k.anahtar; }); if (!a.length) return;
+      try { var x = al ? await api('onaylaToplu', { anahtarlar: a, mod: 'kontrol' }) : await api('eskiReddet', { anahtarlar: a }); toast((x.adet || 0) + (al ? ' kayıt deftere alındı' : ' kayıt alınmadı')); S.onb = {}; onerilerEkrani('taze'); } catch (e) { toast(hataMetni(e)); }
+    }
+    var alt = h('div', { class: 'yapisik' }, h('button', { class: 'btn o', id: 'ek-alma', style: { flex: 1 }, disabled: true, onclick: function () { uygula(false); } }, 'Alma (0)'), h('button', { class: 'btn', id: 'ek-al', style: { flex: 1 }, disabled: true, onclick: function () { uygula(true); } }, 'Deftere al (0)'));
+    kap.replaceChildren(ust, sekmeler || '', bilgi, h('div', { class: 'muted sm' }, 'Eski sistemde yazılmış, banka dökümünde karşılığı bulunamayan kayıtlar. Seçtiklerin deftere alınır ya da alınmaz.'), liste, alt);
+  }
   /** 2.20 geçici (2.21'de kalkar): eski cevap ↔ yeni motor önerisi farklı olanlar. Satır başına "Eskisi" / "Yenisi"; toplu "Hepsinde eski" / "Hepsinde yeni". */
   function uymayanCiz(kap, r, sekmeler, bilgi) {
     var ust = h('div', { class: 'ust' }, h('h1', null, 'Öneriler'), h('button', { class: 'chip', style: { margin: 0 }, onclick: function () { onerilerEkrani('taze'); } }, 'Yenile'));
