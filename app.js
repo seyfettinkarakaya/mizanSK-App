@@ -633,7 +633,7 @@
       h('div', { class: 'muted sm', style: { margin: '0 0 12px' } }, 'Zamanlı işler sunucuda kendi kendine çalışır. Bir sorun olursa ya da hemen istersen buradan çalıştır.'),
       opSatiri('▶', 'Turu başlat', 'Gmail tarama, ekstre, hesap hareketi, yapıştırma, bakım adımları', '2–5 dk', tetikle('Tur', 'isle')),
       opSatiri('₺', 'Kur çek', 'TCMB EVDS: USD, EUR, altın; eksik günler tamamlanır', '', tetikle('Kur', 'kurCek'), 'sari'),
-      opSatiri('✦', 'Claude öner', 'Sınıflanmamış kart satırlarına öneri; günlük hak sınırlı, kartlar maskeli gider', '', tetikle('Claude önerisi', 'oneri'), 'mavi'),
+      opSatiri('✦', 'Claude öner', 'Sınıflanmamış kart ve hesap satırlarına öneri; günlük hak sınırlı, numaralar maskeli gider', '', tetikle('Claude önerisi', 'oneri'), 'mavi'),
       opSatiri('⟳', 'Önbelleği ısıt', 'Kart, hesap ve öneri listeleri önceden hazırlanır', '', tetikle('Önbellek', 'onbellekIsit'), 'gri'),
       opSatiri('⬇', 'Yedek al', 'Planlar, kural, kart, ayar, kuyruk', okList.filter(function (x) { return x.ad === 'Yedek'; }).map(function (x) { return x.ayrinti; })[0] || '', tetikle('Yedek', 'yedekAl'), 'gri'),
       opSatiri('▦', 'Tabloları biçimle', 'Sistem tabloları standart biçime gelir; değerler değişmez. Mizan Rapor ve eski dosyalara dokunmaz', '1–3 dk', tetikle('Biçim', 'bicim'), 'gri')];
