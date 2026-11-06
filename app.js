@@ -4,7 +4,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır; innerHTML YALNIZ sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.07';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.08';
   var S = { cfg: null, pin: null, g: null, gTimer: null, ekran: 'soru', sekme: null, bas: {}, grup: (function () { try { return localStorage.getItem('mizansk.grup') === '1'; } catch (e) { return false; } })(), kisayollar: [], ref: null, onb: {}, gec: {}, dokundu: false, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), faceId: null, kilitli: false, sayilar: {} };
   var app = document.getElementById('app');
 
@@ -223,7 +223,7 @@
   function kaynakCipi(k) { return h('span', { class: 'cip' }, h('i', { class: 'dot ' + (k.kaynak === 'hesap' ? 'tp' : 'kk') }), k.gizli ? (k.banka || 'hesap') : (k.banka || '') + (k.kaynak === 'hesap' ? ' hesap' : ' kart')); }
 
   /** 2.20 Sorular: gelen kutusu (liste, kaydırarak onay, toplu onay) + satıra dokununca soru ekranı (tek dokunuşla cevap). */
-  var BANKA_RENK = { kuveyt: '#1FA971', qnb: '#9A6BE0', vakif: '#E9B10C' }, SINIF_RENK = [['aile', '#F49AC1'], ['ev', '#5EC8C0'], ['muhtelif', '#F5C451'], ['hasene', '#B79CFF'], ['birikim', '#4ADE9A'], ['yatırım', '#7AA2FF'], ['karakaya', '#FFB37A'], ['maaş', '#4ADE9A'], ['kredi', '#FF8E7A']];
+  var BANKA_RENK = { kuveyt: '#1FA971', qnb: '#9A6BE0', vakif: '#E9B10C' }, SINIF_RENK = [['aile', '#F49AC1'], ['ev', '#5EC8C0'], ['muhtelif', '#F5C451'], ['hasene', '#B79CFF'], ['birikim', '#4ADE9A'], ['yatırım', '#7AA2FF'], ['akraba', '#FFB37A'], ['maaş', '#4ADE9A'], ['kredi', '#FF8E7A']];
   function tk_(x) { return String(x || '').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/ğ/g, 'g'); }
   function bankaRengi(b) { return BANKA_RENK[tk_(b)] || '#7B8494'; }
   function bankaRozet(b) { return h('span', { class: 'brz', style: { background: bankaRengi(b) } }, String(b || '?').charAt(0).toLocaleUpperCase('tr-TR')); }
