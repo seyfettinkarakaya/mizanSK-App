@@ -4,7 +4,7 @@
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır; innerHTML YALNIZ sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.08';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.09';
   var S = { cfg: null, pin: null, g: null, gTimer: null, ekran: 'soru', sekme: null, bas: {}, grup: (function () { try { return localStorage.getItem('mizansk.grup') === '1'; } catch (e) { return false; } })(), kisayollar: [], ref: null, onb: {}, gec: {}, dokundu: false, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), faceId: null, kilitli: false, sayilar: {} };
   var app = document.getElementById('app');
 
@@ -670,6 +670,8 @@
       h('div', { class: 'ds' }, h('span', { class: 'muted' }, 'Belgeler'), h('b', null, d.belge || '—')),
       sorun.length ? h('div', { class: 'ds' }, h('span', { class: 'muted' }, 'Kontrol'), h('b', { class: 'sari' }, sorun.map(function (x) { return x.ad; }).join(', '))) : h('div', { class: 'ds' }, h('span', { class: 'muted' }, 'Kontrol listesi'), h('b', { class: 'tp' }, okList.length + ' madde tamam')),
       h('div', { class: 'ds' }, h('span', { class: 'muted' }, 'Face ID'), h('b', null, S.faceId ? 'kurulu · maaş açık' : 'yok · maaş maskeli, şifreyle açılır')));
+    var bl = d.bilgi || [], bilgi = bl.length ? h('div', { class: 'kart' }, h('div', { class: 'b17', style: { marginBottom: '6px' } }, 'Bilgi · son 7 gün'),   // 2.09: kendiliğinden yapılan işler (ör. kur farkı), günde konu başına bir satır
+      bl.slice(0, 10).map(function (b) { return h('div', { style: { padding: '8px 0', borderTop: '1px solid var(--line)' } }, h('div', { class: 'muted sm' }, b.z + ' · ' + b.konu), h('div', { style: { whiteSpace: 'normal', overflowWrap: 'anywhere' } }, b.bilgi)); })) : '';
     var tetik = [h('div', { class: 'b18', style: { margin: '4px 0 2px' } }, 'Elle Tetikleme'),
       h('div', { class: 'muted sm', style: { margin: '0 0 12px' } }, 'Zamanlı işler sunucuda kendi kendine çalışır. Bir sorun olursa ya da hemen istersen buradan çalıştır.'),
       opSatiri('▶', 'Turu başlat', 'Gmail tarama, ekstre, hesap hareketi, yapıştırma, bakım adımları', '2–5 dk', tetikle('Tur', 'isle')),
@@ -689,7 +691,7 @@
     var acil = h('button', { class: 'btn kirmizi o blok', style: { marginTop: '12px' }, onclick: async function () { if (!await onayla('Acil fren', 'Sunucu tüm telefon isteklerini reddeder. Yeniden açmak için sabit>ayar API_KAPALI boşaltılır.', { ad: 'API’yi kapat', tehlike: true })) return; try { await api('apiKapat'); toast('API kapatıldı'); } catch (e) { toast(hataMetni(e)); } } }, 'Acil fren · API’yi kapat');
     var sekme = S.islemSekme === 'tetik' ? 'tetik' : 'durum';
     var seg2 = h('div', { class: 'seg' }, h('button', { class: sekme === 'durum' ? 'on' : '', onclick: function () { S.islemSekme = 'durum'; islemlerEkrani(); } }, 'Durum'), h('button', { class: sekme === 'tetik' ? 'on' : '', onclick: function () { S.islemSekme = 'tetik'; islemlerEkrani(); } }, 'Elle Tetikleme'));
-    kap.replaceChildren(baslik('İşlemler', new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })), seg2, h('div', null, sekme === 'tetik' ? tetik : [durum, h('div', null, ops), acil]), h('div', { class: 'muted sm', style: { margin: '14px 2px 0' } }, 'Uygulama ' + APP_SURUM + (S.son ? ' · son istek ' + S.son.ms + ' ms' : '')));
+    kap.replaceChildren(baslik('İşlemler', new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })), seg2, h('div', null, sekme === 'tetik' ? tetik : [bilgi, durum, h('div', null, ops), acil]), h('div', { class: 'muted sm', style: { margin: '14px 2px 0' } }, 'Uygulama ' + APP_SURUM + (S.son ? ' · son istek ' + S.son.ms + ' ms' : '')));
   }
   /** Nakit/hesap gerçek işlem ekleme (alt sayfa). */
   function ekleSayfasi() {
