@@ -1,10 +1,10 @@
-/* MizanSK mobil uygulama (PWA) · Cep 2.10: tek kart kuyruğu (Tetkik soruları, Tespit onayları, Müşavir kartları, sistem uyarıları; günde en çok 15 kart), Öneriler (toplu onay), İşlemler (durum ve Müşavir özeti).
+/* MizanSK mobil uygulama (PWA) · Cep 2.11 (Face ID açılışta kendiliğinden istenir; arka planda 5 dk kilitlenmez) · 2.10: tek kart kuyruğu (Tetkik soruları, Tespit onayları, Müşavir kartları, sistem uyarıları; günde en çok 15 kart), Öneriler (toplu onay), İşlemler (durum ve Müşavir özeti).
  * Veri yalnız imzalı API'den gelir (82_Api.gs). Adres+anahtar cihaz anahtarıyla (IndexedDB, dışa aktarılamaz) şifreli durur; açılışta şifre sorulmaz.
  * Face ID (passkey + PRF) kuruluysa uygulama Face ID ile açılır ve maaş satırları açık gelir; yoksa maaş maskeli gelir, "İçeriği göster" şifre ister (60 sn).
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır; innerHTML YALNIZ sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.10';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.11';
   var S = { cfg: null, pin: null, g: null, gTimer: null, ekran: 'soru', sekme: null, bas: {}, grup: (function () { try { return localStorage.getItem('mizansk.grup') === '1'; } catch (e) { return false; } })(), kisayollar: [], ref: null, onb: {}, gec: {}, dokundu: false, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), faceId: null, kilitli: false, sayilar: {} };
   var app = document.getElementById('app');
 
@@ -751,12 +751,20 @@
     })));
     yenile();
   }
+  /** 2.11: Face ID ile açar. oto: düğmeye basmadan (açılışta ya da geri dönüşte) denenir; iOS izin vermezse ya da kullanıcı vazgeçerse kilit ekranı düğmesiyle kalır, hata yazılmaz. */
+  async function faceAc(oto) {
+    if (S.fidSuruyor) return;
+    S.fidSuruyor = true;
+    try { await FID.ac(); S.kilitli = false; S.faceId = true; uygulamaKur(); }
+    catch (e) { if (!oto) kilitEkrani('Açılamadı: ' + (e.message || e)); }
+    finally { S.fidSuruyor = false; }
+  }
   function kilitEkrani(hata) {
     S.kilitli = true;
     app.replaceChildren(h('div', { class: 'giris kilit' }, h('img', { class: 'logo', src: 'icon.svg', alt: '' }), h('h1', null, 'MizanSK'), ic('yuz', 64),
       h('div', { class: 'muted', style: { textAlign: 'center', margin: '10px 0 18px' } }, 'Face ID ile açılır. Şifre ekranı yok; Face ID tanımazsa iOS kendi cihaz kodunu ister.'),
       hata ? h('div', { class: 'hata' }, hata) : null,
-      h('button', { class: 'btn blok', onclick: async function () { try { await FID.ac(); S.kilitli = false; S.faceId = true; uygulamaKur(); } catch (e) { kilitEkrani('Açılamadı: ' + (e.message || e)); } } }, 'Face ID ile aç'),
+      h('button', { class: 'btn blok', onclick: function () { faceAc(false); } }, 'Face ID ile aç'),
       h('button', { class: 'btn g blok', style: { marginTop: '8px' }, onclick: async function () { if (await onayla('Face ID kaldırılsın mı?', 'Uygulama şifresiz açılır; maaş satırları maskeli gelir, şifreyle açılır.', { ad: 'Kaldır' })) { FID.sil(); S.faceId = false; S.kilitli = false; uygulamaKur(); } } }, 'Face ID’yi kaldır')));
   }
   function kurulumEkrani(hataMsg) {
@@ -819,7 +827,7 @@
   }, 15000);
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) { S.gizlendi = Date.now(); return; }
-    if (S.cfg && !S.kilitli && S.gizlendi && Date.now() - S.gizlendi > 30000) { if (S.faceId) kilitEkrani(); else { S.g = null; } }
+    if (S.cfg && !S.kilitli && S.gizlendi && Date.now() - S.gizlendi > 300000) { if (S.faceId) { kilitEkrani(); faceAc(true); } else { S.g = null; } }   // 2.11: 30 sn yerine 5 dk; dönüşte Face ID kendiliğinden denenir
     S.gizlendi = 0;
   });
 
@@ -829,7 +837,7 @@
     var cfg = null; try { cfg = await Depo.oku(); } catch (e) { cfg = null; }
     if (!cfg) return kurulumEkrani(localStorage.getItem('mizansk.v1') ? 'Eski sürüm kaydı bulundu: adres ve anahtarı yeniden gir (şifre ekranı kalktı).' : '');
     S.cfg = cfg;
-    if (FID.kayit()) { S.faceId = true; return kilitEkrani(); }
+    if (FID.kayit()) { S.faceId = true; kilitEkrani(); return faceAc(true); }   // 2.11: açılışta düğmeye basmadan Face ID istenir
     uygulamaKur();
   })();
 })();
