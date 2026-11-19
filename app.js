@@ -569,6 +569,8 @@
       el.append(h('div', { class: 'ust2' }, h('span', { class: 'tur' }, k.tip === 'uyari' ? 'Sistem uyarısı' : (TUR_AD_[k.tur] || 'Kart')), h('span', { class: 'cip' + (k.onem === 'kritik' ? ' sari' : '') }, k.onem === 'kritik' ? 'KRİTİK' : (k.onem === 'bilgi' ? 'bilgi' : 'orta'))),
         h('div', { class: 'bas' }, k.baslik || ''), h('div', { class: 'met' }, k.metin || ''), k.eylem && k.eylem.ad && k.eylem.kod !== 'bilgi' ? h('div', { class: 'eyl' }, '› ' + k.eylem.ad) : null);
       if (k.tip === 'uyari') dug.append(h('button', { class: 'btn', onclick: function () { kararGonder(it, 'onay'); } }, 'Gördüm'), h('button', { class: 'btn o', onclick: function () { kararGonder(it, 'ertele', null, 1); } }, 'Yarın'));
+      else if (k.eylem && k.eylem.kod === 'ay_sonu_teyit') dug.append(h('button', { class: 'btn', onclick: function () { aySonuEkrani(String(k.grup || '').split('@')[1] || undefined); } }, 'Ekranı aç'), h('button', { class: 'btn o', onclick: function () { erteleSor(it); } }, 'Ertele'));   // 2.12
+      else if (k.eylem && k.eylem.kod === 'acilis_gir') dug.append(h('button', { class: 'btn', onclick: function () { acilisSayfasi(it); } }, 'Gir'), h('button', { class: 'btn o', onclick: function () { retSor(it); } }, 'Reddet'), h('button', { class: 'btn o', onclick: function () { erteleSor(it); } }, 'Ertele'));
       else dug.append(h('button', { class: 'btn', onclick: function () { kararGonder(it, 'onay'); } }, 'Onayla'), h('button', { class: 'btn o', onclick: function () { retSor(it); } }, 'Reddet'), h('button', { class: 'btn o', onclick: function () { erteleSor(it); } }, 'Ertele'));
     }
     if (it.done) dug.replaceChildren(h('div', { class: 'tp b17' }, '✓ ' + (it.sonuc || 'kaydedildi')));
@@ -776,6 +778,35 @@
     kap.replaceChildren(ust, sekmeler || '', bilgi, h('div', { class: 'muted sm' }, 'Her satırda eski cevabı ya da yeni kuralı seç; "Uygula" seçimleri deftere yazar.'), liste, alt);
     isaretle();
   }
+  /** 2.12 Ay sonu teyidi: o ay sorusuz yazılanlar (kanıt kapısı, süreç otomatik) cari başına; hepsini teyit et ya da tek satırı geri al (7 gün geçmişse de). */
+  var AY_AD_ = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  function ayAdi(a) { return AY_AD_[Number(String(a).slice(5, 7)) - 1] + ' ' + String(a).slice(0, 4); }
+  async function aySonuEkrani(ay) {
+    var kap = ekranHazir(false); kap.replaceChildren(baslik('Ay sonu teyidi', ''), yukleniyor());
+    var r; try { r = await api('aySonu', ay ? { ay: ay } : {}); } catch (e) { return hataGoster(e); }
+    var ust = h('div', { class: 'du' }, h('button', { class: 'geri', onclick: function () { yenile(); } }, '‹ Geri'), h('span', { class: 'muted sm' }, ayAdi(r.ay)));
+    var aylar = r.aylar.length ? h('div', { class: 'fl' }, r.aylar.map(function (a) { return h('button', { class: 'chip' + (a.ay === r.ay ? ' s' : ''), onclick: function () { aySonuEkrani(a.ay); } }, ayAdi(a.ay) + ' · ' + a.adet); })) : null;
+    if (!r.adet) return kap.replaceChildren(ust, baslik('Ay sonu teyidi', ayAdi(r.ay)), aylar || '', h('div', { class: 'bos' }, 'Bu ay teyit bekleyen satır yok'));
+    var nolar = [], gruplar = r.gruplar.map(function (g) {
+      return h('div', { class: 'kart ay-grup' }, h('div', { class: 'satir' }, h('span', { class: 'b17' }, g.cari), h('b', { class: 'num' }, para(g.toplam) + ' ₺')),
+        g.satirlar.map(function (x) {
+          nolar.push(x.no);
+          var not = x.durum === 'yok' ? 'Tasdik’te yok: teyitte silinmiş sayılır' : (x.durum === 'değişti' ? 'Tasdik’te değişmiş' + (x.cariSimdi ? ' (' + x.cariSimdi + ')' : '') + ': teyitte düzeltme sayılır' : '');
+          return h('div', { class: 'satir ay-satir', style: { alignItems: 'center', borderTop: '1px solid var(--line)', padding: '6px 0', marginTop: '6px' } },
+            h('div', { style: { flex: 1, minWidth: 0 } }, h('div', { style: { overflowWrap: 'anywhere' } }, x.aciklama || x.sinif), h('div', { class: 'muted sm' }, tarihKisa(x.tarih) + ' · ' + x.sinif + (not ? ' · ' + not : ''))),
+            h('b', { class: 'num' }, x.tutar === '' ? (x.durum === 'yok' ? '—' : '●●●') : para(x.tutar) + ' ₺'),
+            x.durum === 'tamam' ? h('button', { class: 'btn o', style: { flex: '0 0 auto' }, onclick: async function () {
+              if (!await onayla('Geri alınsın mı?', 'Satır defterden çıkar ve soru olarak döner: ' + (x.aciklama || x.sinif), { ad: 'Geri al' })) return;
+              try { await api('aySonuGeriAl', { ay: r.ay, no: x.no }); toast('Geri alındı: soru olarak döndü'); } catch (e) { toast(hataMetni(e)); } S.onb = {}; aySonuEkrani(r.ay); } }, 'Geri al') : null);
+        }));
+    });
+    var teyit = h('button', { class: 'btn', id: 'ay-teyit', style: { flex: 1 }, onclick: async function () {
+      if (!await onayla('Hepsi teyit edilsin mi?', ayAdi(r.ay) + ': ' + nolar.length + ' satır doğru kabul edilir.', { ad: 'Teyit et' })) return;
+      teyit.disabled = true; try { var x = await api('aySonuTeyit', { ay: r.ay, nolar: nolar }); toast(x.teyit + ' satır teyit edildi' + (x.duzeltme ? ' · ' + x.duzeltme + ' düzeltme' : '') + (x.geriAl ? ' · ' + x.geriAl + ' silinmiş' : '')); } catch (e) { toast(hataMetni(e)); }
+      S.onb = {}; aySonuEkrani(r.ay); } }, 'Hepsini teyit et (' + nolar.length + ')');
+    kap.replaceChildren(ust, baslik('Ay sonu teyidi', ayAdi(r.ay)), aylar || '', h('div', { class: 'muted sm', style: { margin: '0 0 8px' } }, r.adet + ' satır · toplam ' + para(r.toplam) + ' ₺' + (r.degisen ? ' · ' + r.degisen + ' satır Tasdik’te değişmiş' : '')),
+      h('div', null, gruplar), h('div', { class: 'yapisik' }, teyit));
+  }
   // ---------------------------------------------------------------- İşlemler ekranı (durum, Müşavir özeti, geri al, nakit ekle, acil fren)
   function opSatiri(ikon, ad, alt, sag, onclick, renk) {
     return h('button', { class: 'op', onclick: onclick }, h('span', { class: 'ik ' + (renk || 'mavi') }, ikon), h('span', { class: 'g' }, h('b', null, ad), h('span', { class: 'muted sm' }, alt)), h('span', { class: 'muted sm sag' }, sag || ''));
@@ -800,6 +831,7 @@
     });
     if (!(d.geriAl || []).length) ops.push(h('div', { class: 'muted sm', style: { padding: '4px 2px 8px' } }, 'Geri alınacak işlem yok'));
     ops.push(opSatiri('+', 'Nakit harcama ekle', 'elden işlem: tutar, cari, gün', '', ekleSayfasi, 'tp'));
+    ops.push(opSatiri('✓', 'Ay sonu teyidi', 'sorusuz yazılanları gözden geçir, teyit et', '', function () { aySonuEkrani(); }, 'mavi'));   // 2.12
     if (!S.faceId && await FID.varMi()) ops.push(opSatiri('◎', 'Face ID kur', 'uygulama Face ID ile açılır; maaş açık gelir', '', async function () { var pin = await pinSor('Şifreni gir', 'Face ID, maaş şifresini cihazda saklar'); if (!pin) return; try { await gizliAcPinle(pin); await FID.kur(pin); S.faceId = true; S.pin = pin; toast('Face ID kuruldu'); islemlerEkrani(); } catch (e) { toast(hataMetni(e)); } }, 'mavi'));
     if (S.faceId) ops.push(opSatiri('◎', 'Face ID’yi kaldır', 'maaş yeniden maskeli gelir', '', async function () { if (await onayla('Face ID kaldırılsın mı?', 'Uygulama Face ID istemez; maaş satırları şifreyle açılır.', { ad: 'Kaldır' })) { FID.sil(); S.faceId = false; S.g = null; islemlerEkrani(); } }, 'gri'));
     var acil = h('button', { class: 'btn kirmizi o blok', style: { marginTop: '12px' }, onclick: async function () { if (!await onayla('Acil fren', 'Sunucu tüm telefon isteklerini reddeder. Yeniden açmak için sabit>ayar API_KAPALI boşaltılır.', { ad: 'API’yi kapat', tehlike: true })) return; try { await api('apiKapat'); toast('API kapatıldı'); } catch (e) { toast(hataMetni(e)); } } }, 'Acil fren · API’yi kapat');
