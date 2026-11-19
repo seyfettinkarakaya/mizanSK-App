@@ -1,10 +1,10 @@
-/* MizanSK mobil uygulama (PWA) · Cep 2.12 (gelen/giden para seçimi, ay sonu teyidi, açılış devri kartı) · 2.11: Face ID açılışta kendiliğinden; 2.10: tek kart kuyruğu (Tetkik soruları, Tespit onayları, Müşavir kartları, sistem uyarıları), Öneriler (toplu onay), İşlemler (durum ve Müşavir özeti).
+/* MizanSK mobil uygulama (PWA) · Cep 2.13 (borç alma/verme parçasında isteğe bağlı amaç etiketi) · 2.12: gelen/giden para seçimi, ay sonu teyidi, açılış devri kartı; 2.11: Face ID açılışta kendiliğinden; 2.10: tek kart kuyruğu (Tetkik soruları, Tespit onayları, Müşavir kartları, sistem uyarıları), Öneriler (toplu onay), İşlemler (durum ve Müşavir özeti).
  * Veri yalnız imzalı API'den gelir (82_Api.gs). Adres+anahtar cihaz anahtarıyla (IndexedDB, dışa aktarılamaz) şifreli durur; açılışta şifre sorulmaz.
  * Face ID (passkey + PRF) kuruluysa uygulama Face ID ile açılır ve maaş satırları açık gelir; yoksa maaş maskeli gelir, "İçeriği göster" şifre ister (60 sn).
  * Güvenlik: sayfaya yazılan her metin textContent/createTextNode ile basılır; innerHTML YALNIZ sabit simge dizgeleri için. */
 (function () {
   'use strict';
-  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.12';
+  var MC = window.MizanCrypto, DEPO = 'mizansk.v2', DEPO_FID = 'mizansk.faceid', APP_SURUM = '2.13';
   var S = { cfg: null, pin: null, g: null, gTimer: null, ekran: 'soru', sekme: null, bas: {}, grup: (function () { try { return localStorage.getItem('mizansk.grup') === '1'; } catch (e) { return false; } })(), kisayollar: [], ref: null, onb: {}, gec: {}, dokundu: false, ayar: { gizliSure: 60, kilitDk: 3 }, sonEtkin: Date.now(), faceId: null, kilitli: false, sayilar: {} };
   var app = document.getElementById('app');
 
@@ -431,7 +431,7 @@
       function durum() { var d = hesap(); kalanEl.textContent = d.kalan === 0 ? 'Toplam tutuyor' : 'Kalan: ' + para(d.kalan / 100) + ' ₺'; kaydet.disabled = !d.tamam; }
       function kalanTL() { return Math.max(0, hesap().kalan) / 100; }
       function ekle(tur) {
-        var p = { tur: tur, tutar: '', planlar: [], vade: '', not: '', cari: '', etiket: [] }, kal = kalanTL(); if (kal > 0 && tur !== 'kapama') p.tutar = String(kal).replace('.', ',');
+        var p = { tur: tur, tutar: '', planlar: [], vade: '', not: '', amac: '', cari: '', etiket: [] }, kal = kalanTL(); if (kal > 0 && tur !== 'kapama') p.tutar = String(kal).replace('.', ',');
         parcalar.push(p); ciz();
       }
       function planListesi(p) {
@@ -447,6 +447,13 @@
             h('span', null, (pl.tarih ? tarihKisa(pl.tarih) + ' · ' : '') + (pl.birim === 'TRY' ? para(pl.kalan) + ' ₺' : para(pl.kalan) + ' ' + pl.birim + (pl.tl != null ? ' ≈ ' + para(pl.tl) + ' ₺' : '')) + (pl.aciklama ? ' · ' + pl.aciklama : '')));
         }));
       }
+      /** 2.13: borç alma/verme parçasının amacı (ör. bir proje adı). Boş bırakılabilir; öneriler kişinin geçmişinden (en sık önce), serbest yazı da olur. */
+      function amacAlani(p) {
+        var L = ((bilgi && bilgi.amaclar) || []).slice(0, 6), am = h('input', { class: 'alan', type: 'text', maxlength: '60', id: 'para-amac', placeholder: 'Amaç (isteğe bağlı), ör. bir proje adı', value: p.amac || '', 'aria-label': 'Amaç etiketi (isteğe bağlı)', oninput: function () { p.amac = am.value; isaretle(); } });
+        var cipler = L.map(function (x) { return h('button', { class: 'chip' + (p.amac === x.ad ? ' s' : ''), type: 'button', 'data-amac': x.ad, onclick: function () { p.amac = p.amac === x.ad ? '' : x.ad; am.value = p.amac; isaretle(); } }, x.ad + (x.ust ? ' · ' + x.ust : '')); });
+        function isaretle() { cipler.forEach(function (c) { c.classList.toggle('s', c.getAttribute('data-amac') === String(p.amac || '').trim()); }); }
+        return h('div', null, h('label', { class: 'et' }, 'Amaç (isteğe bağlı)'), am, L.length ? h('div', { class: 'hizli-satir' }, cipler) : null);
+      }
       function parcaOge(p, i) {
         var tu = h('input', { class: 'alan', type: 'text', inputmode: 'decimal', placeholder: 'Tutar', value: p.tutar, style: { maxWidth: '150px' }, oninput: function () { p.tutar = tu.value; durum(); } });
         var sil = h('button', { class: 'btn o', style: { flex: '0 0 48px' }, 'aria-label': 'Parçayı sil', onclick: function () { parcalar.splice(i, 1); ciz(); } }, '×');
@@ -455,6 +462,7 @@
         if (p.tur === 'borcAl' || p.tur === 'borcVer') {
           var vd = h('input', { class: 'alan', type: 'date', value: p.vade, min: uye.tarih, oninput: function () { p.vade = vd.value; durum(); } }), nt = h('input', { class: 'alan', type: 'text', maxlength: '60', placeholder: 'Not (isteğe bağlı)', value: p.not, oninput: function () { p.not = nt.value; } });
           kutu.append(h('label', { class: 'et' }, p.tur === 'borcAl' ? 'Geri ödeme tarihi' : 'Tahsil tarihi'), vd, nt);
+          kutu.appendChild(amacAlani(p));   // 2.13: isteğe bağlı amaç etiketi (hareket ve plan aynı etiketle)
         }
         if (p.tur === 'baska') kutu.appendChild(h('button', { class: 'btn o blok', style: { textAlign: 'left', marginTop: '6px' }, onclick: async function () { var r = await cariSec(p.cari ? { cari: p.cari, etiket: p.etiket } : null); if (r) { p.cari = r.cari; p.etiket = r.etiket || []; ciz(); } } }, p.cari ? p.cari + (etMetni(p.etiket) ? ' · ' + etMetni(p.etiket) : '') : 'Cari seç ›'));
         return kutu;
@@ -482,7 +490,7 @@
       }
       kaydet.onclick = async function () {
         if (!hesap().tamam) return; kaydet.disabled = true; kaydet.textContent = 'Kaydediliyor…';
-        var istek = parcalar.map(function (p) { var x = { tur: p.tur, tutar: tutarOku(p.tutar) }; if (p.tur === 'kapama') x.planlar = p.planlar.slice(); if (p.vade) { x.vade = p.vade; x.not = p.not || undefined; } if (p.tur === 'baska') { x.cari = p.cari; x.etiket = p.etiket; } return x; });
+        var istek = parcalar.map(function (p) { var x = { tur: p.tur, tutar: tutarOku(p.tutar) }; if (p.tur === 'kapama') x.planlar = p.planlar.slice(); if (p.vade) { x.vade = p.vade; x.not = p.not || undefined; if (String(p.amac || '').trim()) x.amac = String(p.amac).trim(); } if (p.tur === 'baska') { x.cari = p.cari; x.etiket = p.etiket; } return x; });
         try { var r = await api('paraSec', { anahtar: anahtar, ip: ip, kisi: kisi || undefined, parcalar: istek }); }
         catch (e) { kaydet.disabled = false; kaydet.textContent = 'Kaydet'; return toast(hataMetni(e)); }
         if (r.kuru) { kaydet.disabled = false; kaydet.textContent = 'Kaydet'; return toast('Yazılmadı: ' + (r.neden || 'kuru kip')); }
