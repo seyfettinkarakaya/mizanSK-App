@@ -807,6 +807,30 @@
     kap.replaceChildren(ust, baslik('Ay sonu teyidi', ayAdi(r.ay)), aylar || '', h('div', { class: 'muted sm', style: { margin: '0 0 8px' } }, r.adet + ' satır · toplam ' + para(r.toplam) + ' ₺' + (r.degisen ? ' · ' + r.degisen + ' satır Tasdik’te değişmiş' : '')),
       h('div', null, gruplar), h('div', { class: 'yapisik' }, teyit));
   }
+  /** 2.12 Açılış devri kartı: eksi görünen fonun yıl başı adedi (fiyat sunucudan; yoksa sorulur). Devir satırı yazılır, geri alınabilir. */
+  function sayiOku(v) { var s = String(v || '').trim().replace(/\s/g, ''); if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.'); var n = Number(s); return isFinite(n) ? n : NaN; }
+  function acilisSayfasi(it) {
+    var k = it.k;
+    altSayfa(async function (sy, kapat) {
+      sy.append(yukleniyor());
+      var b; try { b = await api('acilisBilgi', { kimlik: k.kimlik }); } catch (e) { kapat(); return toast(hataMetni(e)); }
+      var adet = h('input', { class: 'alan', id: 'acilis-adet', type: 'text', inputmode: 'decimal', placeholder: 'Adet' }), fiyat = b.fiyat == null ? h('input', { class: 'alan', id: 'acilis-fiyat', type: 'text', inputmode: 'decimal', placeholder: 'Birim fiyat (₺)' }) : null;
+      var ozetEl = h('div', { class: 'b17', style: { margin: '10px 0' } }), kaydet = h('button', { class: 'btn blok', id: 'acilis-kaydet', disabled: true }, 'Devir satırını yaz');
+      function durum() { var a = sayiOku(adet.value), f = b.fiyat != null ? b.fiyat : sayiOku(fiyat.value), ok = a > 0 && f > 0; kaydet.disabled = !ok; ozetEl.textContent = ok ? 'Değer: ' + para(a * f) + ' ₺' : ''; }
+      adet.oninput = durum; if (fiyat) fiyat.oninput = durum;
+      kaydet.onclick = async function () {
+        kaydet.disabled = true; try { var r = await api('acilisYaz', { kimlik: k.kimlik, surum: k.surum, ozet: k.ozet, adet: sayiOku(adet.value), fiyat: fiyat ? sayiOku(fiyat.value) : undefined }); }
+        catch (e) { kaydet.disabled = false; if (e.kod === 'guncel') { kapat(); S.onb = {}; sorularEkrani(S.sekme, 'taze'); } return toast(hataMetni(e)); }
+        if (r.kuru) { kaydet.disabled = false; return toast('Yazılmadı: ' + (r.neden || 'kuru kip')); }
+        kapat(); S.onb = {}; it.done = true; it.sonuc = 'devir yazıldı'; if (it.el) it.el.replaceWith(kartOge(it));
+        toast('Devir satırı yazıldı', r.geriAl ? 'Geri al' : null, async function () { try { await api('geriAl'); S.onb = {}; sorularEkrani(S.sekme, 'taze'); } catch (e) { toast(hataMetni(e)); } });
+      };
+      sy.replaceChildren(h('div', { class: 'tut' }), h('div', { class: 'b18' }, b.kod + ': ' + tarihKisa(b.tarih) + ' ' + b.tarih.slice(0, 4) + ' adedi'),
+        h('div', { class: 'muted sm', style: { margin: '4px 0 8px' } }, 'Defterdeki adet şimdi ' + String(b.adetSimdi).replace('.', ',') + ' · cari ' + b.cari + (b.fiyat != null ? ' · fiyat ' + String(b.fiyat).replace('.', ',') + ' ₺ (' + tarihKisa(b.fiyatTarihi) + ')' : ' · fiyat bulunamadı: gir')),
+        h('label', { class: 'et' }, 'Yıl başındaki adet'), adet, fiyat ? h('label', { class: 'et' }, 'Bir önceki günün birim fiyatı') : null, fiyat, ozetEl, kaydet,
+        h('button', { class: 'btn g blok', style: { marginTop: '8px' }, onclick: kapat }, 'Vazgeç'));
+    });
+  }
   // ---------------------------------------------------------------- İşlemler ekranı (durum, Müşavir özeti, geri al, nakit ekle, acil fren)
   function opSatiri(ikon, ad, alt, sag, onclick, renk) {
     return h('button', { class: 'op', onclick: onclick }, h('span', { class: 'ik ' + (renk || 'mavi') }, ikon), h('span', { class: 'g' }, h('b', null, ad), h('span', { class: 'muted sm' }, alt)), h('span', { class: 'muted sm sag' }, sag || ''));
