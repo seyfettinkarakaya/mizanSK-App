@@ -140,3 +140,6 @@ label.et{display:block;font-size:15px;font-weight:700;color:var(--muted);margin-
 .mk .dug{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}.mk .dug .btn{flex:1;min-width:96px}
 .ret{display:flex;flex-direction:column;gap:10px;margin-top:10px}.ret .btn{width:100%}
 .ozet-m .ds b{font-variant-numeric:tabular-nums}
+/* 2.16: işlenmeyen onay şeridi (dikkat çeker, kırmızı değil); elden kayıt bildiriminin satırları */
+.serit{background:rgba(245,196,81,.14);border:2px solid var(--sari);border-radius:14px;padding:12px 14px;margin:0 0 12px;color:var(--text);overflow-wrap:anywhere}
+.elle-l{margin-top:8px}.elle-s{align-items:center;border-top:1px solid var(--line);padding:8px 0}
